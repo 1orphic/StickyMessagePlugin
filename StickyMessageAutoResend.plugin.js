@@ -1,8 +1,8 @@
 /**
  * @name StickyMessageAutoResend
  * @author BetterDiscord Community
- * @description Track ONE message by entering its ID in settings. The message will automatically resend when deleted.
- * @version 4.0.1
+ * @description Track ONE message by entering its ID and Channel ID in settings. The message will automatically resend when deleted.
+ * @version 5.0.0
  * @authorId 0
  * @website https://github.com
  * @source https://github.com
@@ -16,14 +16,14 @@ module.exports = class StickyMessageAutoResend {
 
     getName() { return "StickyMessageAutoResend"; }
     getAuthor() { return "BetterDiscord Community"; }
-    getDescription() { return "Track ONE message by entering its ID in settings. The message will automatically resend when deleted."; }
-    getVersion() { return "4.0.1"; }
+    getDescription() { return "Track ONE message by entering its ID and Channel ID in settings. The message will automatically resend when deleted."; }
+    getVersion() { return "5.0.0"; }
 
     start() {
         console.log("[StickyMessageAutoResend] Starting plugin...");
         this.loadTrackedMessage();
         this.startMessageDeleteListener();
-        BdApi.UI.showToast("StickyMessageAutoResend started! Enter a message ID in settings to track it.", { type: "success" });
+        BdApi.UI.showToast("StickyMessageAutoResend started! Enter message details in settings to track it.", { type: "success" });
     }
 
     stop() {
@@ -53,95 +53,31 @@ module.exports = class StickyMessageAutoResend {
         }
     }
 
-    findMessageStore() {
-        // Try multiple patterns to find MessageStore
-        let store = BdApi.Webpack.getModule(m => m?.getMessage && m?.getMessages);
-        if (!store) {
-            // Try alternative pattern
-            store = BdApi.Webpack.getModule(m => m?.getMessage && m?.hasPresent);
-        }
-        if (!store) {
-            // Try searching by multiple methods
-            store = BdApi.Webpack.getModule(m => typeof m?.getMessage === 'function' && typeof m?.getMessages === 'function');
-        }
-        if (!store) {
-            // Try using Filters if available
-            try {
-                if (BdApi.Webpack.Filters) {
-                    store = BdApi.Webpack.getModule(BdApi.Webpack.Filters.byProps("getMessage", "getMessages"));
-                }
-            } catch (e) {
-                console.warn("[StickyMessageAutoResend] Filters API not available:", e);
-            }
-        }
-        return store;
-    }
-
-    findChannelStore() {
-        // Try multiple patterns to find ChannelStore
-        let store = BdApi.Webpack.getModule(m => m?.getChannel && m?.getSelectedChannelId);
-        if (!store) {
-            // Try alternative pattern
-            store = BdApi.Webpack.getModule(m => m?.getChannel && m?.hasChannel);
-        }
-        if (!store) {
-            // Try searching by multiple methods
-            store = BdApi.Webpack.getModule(m => typeof m?.getChannel === 'function' && typeof m?.getDMFromUserId === 'function');
-        }
-        if (!store) {
-            // Try using Filters if available
-            try {
-                if (BdApi.Webpack.Filters) {
-                    store = BdApi.Webpack.getModule(BdApi.Webpack.Filters.byProps("getChannel", "getDMFromUserId"));
-                }
-            } catch (e) {
-                console.warn("[StickyMessageAutoResend] Filters API not available:", e);
-            }
-        }
-        return store;
-    }
-
-    async trackMessageById(messageId, channelId) {
+    trackMessage(messageId, channelId, content) {
         try {
-            const MessageStore = this.findMessageStore();
-            const ChannelStore = this.findChannelStore();
-            
-            if (!MessageStore) {
-                console.error("[StickyMessageAutoResend] MessageStore not found");
-                BdApi.UI.showToast("Failed to find Discord's MessageStore. Try reloading Discord.", { type: "error" });
+            if (!messageId || !messageId.trim()) {
+                BdApi.UI.showToast("Please enter a message ID", { type: "error" });
                 return false;
             }
 
-            if (!ChannelStore) {
-                console.error("[StickyMessageAutoResend] ChannelStore not found");
-                BdApi.UI.showToast("Failed to find Discord's ChannelStore. Try reloading Discord.", { type: "error" });
+            if (!channelId || !channelId.trim()) {
+                BdApi.UI.showToast("Please enter a channel ID", { type: "error" });
                 return false;
             }
 
-            // Use selected channel if no channelId provided
-            const targetChannelId = channelId || ChannelStore.getSelectedChannelId();
-            if (!targetChannelId) {
-                BdApi.UI.showToast("Please open a channel first", { type: "error" });
-                return false;
-            }
-
-            const message = MessageStore.getMessage(targetChannelId, messageId);
-            
-            if (!message) {
-                console.error("[StickyMessageAutoResend] Message not found:", messageId);
-                BdApi.UI.showToast("Message not found. Make sure the ID is correct and you're in the right channel.", { type: "error" });
+            if (!content || !content.trim()) {
+                BdApi.UI.showToast("Please enter the message content", { type: "error" });
                 return false;
             }
 
             this.trackedMessage = {
-                id: message.id,
-                channelId: message.channel_id,
-                content: message.content || "",
-                timestamp: message.timestamp
+                id: messageId.trim(),
+                channelId: channelId.trim(),
+                content: content.trim()
             };
             
             this.saveTrackedMessage();
-            console.log("[StickyMessageAutoResend] Now tracking message:", this.trackedMessage.id);
+            console.log("[StickyMessageAutoResend] Now tracking message:", this.trackedMessage.id, "in channel:", this.trackedMessage.channelId);
             BdApi.UI.showToast("Message tracked! It will auto-resend if deleted.", { type: "success" });
             return true;
 
@@ -269,47 +205,12 @@ module.exports = class StickyMessageAutoResend {
 
             await MessageActions.sendMessage(this.trackedMessage.channelId, messagePayload);
             
-            console.log("[StickyMessageAutoResend] Message resent successfully");
+            console.log("[StickyMessageAutoResend] Message resent successfully to channel:", this.trackedMessage.channelId);
             BdApi.UI.showToast("Tracked message resent!", { type: "success" });
-            
-            // Update tracked message ID after resend
-            setTimeout(() => {
-                this.updateTrackedMessageId();
-            }, 1000);
 
         } catch (error) {
             console.error("[StickyMessageAutoResend] Failed to resend message:", error);
             BdApi.UI.showToast("Failed to resend message. Check console.", { type: "error" });
-        }
-    }
-
-    async updateTrackedMessageId() {
-        try {
-            const MessageStore = this.findMessageStore();
-            
-            if (!MessageStore) {
-                console.warn("[StickyMessageAutoResend] Could not find MessageStore to update message ID");
-                return;
-            }
-
-            const messages = MessageStore.getMessages(this.trackedMessage.channelId);
-            if (!messages) return;
-
-            // Find the most recent message with matching content
-            const messageArray = messages._array || [];
-            for (let i = messageArray.length - 1; i >= 0; i--) {
-                const msg = messageArray[i];
-                if (msg.content === this.trackedMessage.content) {
-                    const oldId = this.trackedMessage.id;
-                    this.trackedMessage.id = msg.id;
-                    this.trackedMessage.timestamp = msg.timestamp;
-                    this.saveTrackedMessage();
-                    console.log("[StickyMessageAutoResend] Updated tracked message ID from", oldId, "to", msg.id);
-                    break;
-                }
-            }
-        } catch (error) {
-            console.error("[StickyMessageAutoResend] Error updating message ID:", error);
         }
     }
 
@@ -331,13 +232,15 @@ module.exports = class StickyMessageAutoResend {
         instructions.innerHTML = `
             <h3 style="margin-top: 0; margin-bottom: 10px;">How to use:</h3>
             <ol style="margin: 0; padding-left: 20px; line-height: 1.8;">
-                <li>Right-click on a message and select "Copy Message ID" (requires Developer Mode enabled)</li>
-                <li>Paste the message ID into the input field below</li>
-                <li>Click "Track Message" to start tracking it</li>
+                <li>Enable Developer Mode in Discord Settings > Advanced (if not already enabled)</li>
+                <li>Right-click on the message you want to track and select "Copy Message ID"</li>
+                <li>Right-click on the channel name and select "Copy Channel ID"</li>
+                <li>Copy the message content (text)</li>
+                <li>Paste all three values into the fields below and click "Track Message"</li>
                 <li>The message will automatically resend if deleted</li>
             </ol>
             <p style="margin-top: 15px; margin-bottom: 0; color: var(--text-muted); font-size: 14px;">
-                <strong>Note:</strong> Only ONE message can be tracked at a time. Enable Developer Mode in Discord Settings > Advanced if you don't see the "Copy Message ID" option.
+                <strong>Note:</strong> Only ONE message can be tracked at a time.
             </p>
         `;
         panel.appendChild(instructions);
@@ -353,20 +256,21 @@ module.exports = class StickyMessageAutoResend {
             const trackTitle = document.createElement("h3");
             trackTitle.textContent = "Track a Message:";
             trackTitle.style.marginTop = "0";
-            trackTitle.style.marginBottom = "10px";
+            trackTitle.style.marginBottom = "15px";
             trackSection.appendChild(trackTitle);
 
-            const inputLabel = document.createElement("label");
-            inputLabel.textContent = "Message ID:";
-            inputLabel.style.display = "block";
-            inputLabel.style.marginBottom = "8px";
-            inputLabel.style.fontWeight = "500";
-            trackSection.appendChild(inputLabel);
+            // Message ID Input
+            const messageIdLabel = document.createElement("label");
+            messageIdLabel.textContent = "Message ID:";
+            messageIdLabel.style.display = "block";
+            messageIdLabel.style.marginBottom = "8px";
+            messageIdLabel.style.fontWeight = "500";
+            trackSection.appendChild(messageIdLabel);
 
-            const input = document.createElement("input");
-            input.type = "text";
-            input.placeholder = "Paste message ID here (e.g., 1234567890123456789)";
-            input.style.cssText = `
+            const messageIdInput = document.createElement("input");
+            messageIdInput.type = "text";
+            messageIdInput.placeholder = "Paste message ID here (e.g., 1234567890123456789)";
+            messageIdInput.style.cssText = `
                 width: 100%;
                 padding: 10px;
                 background-color: var(--input-background);
@@ -375,9 +279,59 @@ module.exports = class StickyMessageAutoResend {
                 color: var(--text-normal);
                 font-size: 14px;
                 box-sizing: border-box;
-                margin-bottom: 10px;
+                margin-bottom: 15px;
             `;
-            trackSection.appendChild(input);
+            trackSection.appendChild(messageIdInput);
+
+            // Channel ID Input
+            const channelIdLabel = document.createElement("label");
+            channelIdLabel.textContent = "Channel ID:";
+            channelIdLabel.style.display = "block";
+            channelIdLabel.style.marginBottom = "8px";
+            channelIdLabel.style.fontWeight = "500";
+            trackSection.appendChild(channelIdLabel);
+
+            const channelIdInput = document.createElement("input");
+            channelIdInput.type = "text";
+            channelIdInput.placeholder = "Paste channel ID here (e.g., 9876543210987654321)";
+            channelIdInput.style.cssText = `
+                width: 100%;
+                padding: 10px;
+                background-color: var(--input-background);
+                border: 1px solid var(--background-tertiary);
+                border-radius: 4px;
+                color: var(--text-normal);
+                font-size: 14px;
+                box-sizing: border-box;
+                margin-bottom: 15px;
+            `;
+            trackSection.appendChild(channelIdInput);
+
+            // Message Content Input
+            const contentLabel = document.createElement("label");
+            contentLabel.textContent = "Message Content:";
+            contentLabel.style.display = "block";
+            contentLabel.style.marginBottom = "8px";
+            contentLabel.style.fontWeight = "500";
+            trackSection.appendChild(contentLabel);
+
+            const contentInput = document.createElement("textarea");
+            contentInput.placeholder = "Paste the message content here...";
+            contentInput.style.cssText = `
+                width: 100%;
+                padding: 10px;
+                background-color: var(--input-background);
+                border: 1px solid var(--background-tertiary);
+                border-radius: 4px;
+                color: var(--text-normal);
+                font-size: 14px;
+                box-sizing: border-box;
+                margin-bottom: 15px;
+                min-height: 100px;
+                resize: vertical;
+                font-family: inherit;
+            `;
+            trackSection.appendChild(contentInput);
 
             const trackBtn = document.createElement("button");
             trackBtn.textContent = "Track Message";
@@ -391,14 +345,12 @@ module.exports = class StickyMessageAutoResend {
                 font-size: 14px;
                 font-weight: 500;
             `;
-            trackBtn.onclick = async () => {
-                const messageId = input.value.trim();
-                if (!messageId) {
-                    BdApi.UI.showToast("Please enter a message ID", { type: "error" });
-                    return;
-                }
+            trackBtn.onclick = () => {
+                const messageId = messageIdInput.value.trim();
+                const channelId = channelIdInput.value.trim();
+                const content = contentInput.value.trim();
 
-                const success = await this.trackMessageById(messageId);
+                const success = this.trackMessage(messageId, channelId, content);
                 if (success) {
                     // Refresh the settings panel
                     const settingsContainer = panel.parentElement;
@@ -427,16 +379,12 @@ module.exports = class StickyMessageAutoResend {
         statusSection.appendChild(statusTitle);
 
         if (this.trackedMessage) {
-            const ChannelStore = this.findChannelStore();
-            const channel = ChannelStore ? ChannelStore.getChannel(this.trackedMessage.channelId) : null;
-            const channelName = channel ? `#${channel.name}` : "Unknown Channel";
-
             const info = document.createElement("div");
             info.innerHTML = `
                 <p style="margin: 0 0 10px 0;"><strong>Status:</strong> <span style="color: var(--status-positive);">✓ Tracking a message</span></p>
-                <p style="margin: 0 0 10px 0;"><strong>Channel:</strong> ${channelName}</p>
-                <p style="margin: 0 0 10px 0;"><strong>Content:</strong> ${this.trackedMessage.content.substring(0, 100)}${this.trackedMessage.content.length > 100 ? '...' : ''}</p>
-                <p style="margin: 0 0 15px 0;"><strong>Message ID:</strong> ${this.trackedMessage.id}</p>
+                <p style="margin: 0 0 10px 0;"><strong>Channel ID:</strong> ${this.trackedMessage.channelId}</p>
+                <p style="margin: 0 0 10px 0;"><strong>Message ID:</strong> ${this.trackedMessage.id}</p>
+                <p style="margin: 0 0 15px 0;"><strong>Content:</strong> ${this.trackedMessage.content.substring(0, 100)}${this.trackedMessage.content.length > 100 ? '...' : ''}</p>
             `;
             statusSection.appendChild(info);
 
