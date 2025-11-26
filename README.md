@@ -49,7 +49,6 @@ When a tracked message is deleted:
 ## Requirements
 
 - [BetterDiscord](https://betterdiscord.app/) installed and working
-- [ZeresPluginLibrary](https://github.com/rauenzi/BDPluginLibrary) (the plugin will prompt you to install it if missing)
 
 ## Edge Cases Handled
 
@@ -69,7 +68,6 @@ When a tracked message is deleted:
 
 ### Plugin not loading
 - Ensure BetterDiscord is properly installed
-- Check that ZeresPluginLibrary is installed
 - Look for errors in the console (Ctrl+Shift+I)
 
 ### Message not resending
@@ -79,14 +77,12 @@ When a tracked message is deleted:
 
 ### Console errors
 - Update BetterDiscord to the latest version
-- Update ZeresPluginLibrary to the latest version
 - Report the issue with console logs
 
 ## Development
 
 The plugin is built using:
-- BetterDiscord Plugin API
-- ZeresPluginLibrary for utilities and UI components
+- BetterDiscord native API (BdApi)
 - Discord's internal Webpack modules for message handling
 
 ### Key Components

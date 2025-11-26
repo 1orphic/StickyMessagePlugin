@@ -5,7 +5,6 @@ This document outlines the testing strategy for the Sticky Message Auto-Resend B
 
 ## Pre-requisites
 - BetterDiscord installed and working
-- ZeresPluginLibrary installed
 - Access to a Discord server where you can send and delete messages
 
 ## Test Cases
@@ -294,16 +293,13 @@ This document outlines the testing strategy for the Sticky Message Auto-Resend B
 
 ## Edge Cases & Error Scenarios
 
-### Edge Case 1: Plugin Loaded Without Library
-**Expected**: Shows confirmation modal to download ZeresPluginLibrary
-
-### Edge Case 2: Corrupted Save Data
+### Edge Case 1: Corrupted Save Data
 **Expected**: Plugin logs error and initializes with empty tracked messages
 
-### Edge Case 3: Message ID Collision (unlikely)
+### Edge Case 2: Message ID Collision (unlikely)
 **Expected**: Handled by Map data structure
 
-### Edge Case 4: Network Issues During Resend
+### Edge Case 3: Network Issues During Resend
 **Expected**: Error caught and logged, user notified
 
 ## Performance Tests

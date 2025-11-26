@@ -19,7 +19,6 @@ Thank you for your interest in contributing to this BetterDiscord plugin! This d
 
 ### Prerequisites
 - [BetterDiscord](https://betterdiscord.app/) installed
-- [ZeresPluginLibrary](https://github.com/rauenzi/BDPluginLibrary) installed
 - Text editor or IDE (VS Code recommended)
 - Basic knowledge of JavaScript and Discord's API
 
@@ -48,30 +47,36 @@ Thank you for your interest in contributing to this BetterDiscord plugin! This d
 ### BetterDiscord Conventions
 - Follow the plugin structure with meta header
 - Use BdApi for Discord operations
-- Use ZeresPluginLibrary utilities where applicable
+- Use BetterDiscord native API only
 - Handle errors gracefully with try-catch blocks
-- Show user-friendly notifications using Toasts
+- Show user-friendly notifications using BdApi.UI.showToast
 
 ### Example Code Style
 ```javascript
 async resendMessage(messageData) {
     try {
+        const ChannelStore = BdApi.Webpack.getModule(
+            m => m?.getChannel && m?.hasChannel
+        );
         const channel = ChannelStore.getChannel(messageData.channelId);
         
         if (!channel) {
-            Toasts.error("Cannot resend message: Channel not found");
+            BdApi.UI.showToast("Cannot resend message: Channel not found", { type: "error" });
             return;
         }
 
         // Send the message
+        const MessageActions = BdApi.Webpack.getModule(
+            m => m?.sendMessage && m?.receiveMessage
+        );
         MessageActions.sendMessage(messageData.channelId, {
             content: messageData.content || ""
         });
         
-        Toasts.success("Message resent!");
+        BdApi.UI.showToast("Message resent!", { type: "success" });
     } catch (error) {
         console.error("Failed to resend:", error);
-        Toasts.error("Failed to resend message");
+        BdApi.UI.showToast("Failed to resend message", { type: "error" });
     }
 }
 ```
@@ -257,7 +262,6 @@ When adding features, consider:
 
 - **Discord API**: [Discord Developer Portal](https://discord.com/developers/docs)
 - **BetterDiscord**: [BetterDiscord Docs](https://docs.betterdiscord.app/)
-- **ZeresPluginLibrary**: [Library Docs](https://github.com/rauenzi/BDPluginLibrary)
 
 ## Community
 

@@ -4,13 +4,12 @@ This document provides technical details about how the Sticky Message Auto-Resen
 
 ## Architecture Overview
 
-The plugin follows the BetterDiscord plugin structure and uses ZeresPluginLibrary for utilities.
+The plugin follows the BetterDiscord plugin structure and uses only the native BetterDiscord API (BdApi).
 
 ```
 StickyMessageAutoResend
 │
-├── Configuration (meta + config object)
-├── Library Fallback (ZeresPluginLibrary check)
+├── Plugin Meta Header
 └── Main Plugin Class
     ├── Data Management
     ├── Event Handling
@@ -27,28 +26,23 @@ StickyMessageAutoResend
  * @name StickyMessageAutoResend
  * @author BetterDiscord Community
  * @description Automatically resends a tracked message if it gets deleted
- * @version 1.0.0
+ * @version 2.0.0
  */
 ```
 
 This header is parsed by BetterDiscord to display plugin information.
 
-### 2. Configuration Object
+### 2. Plugin Class
+
+The plugin is a simple ES6 class that exports directly:
 
 ```javascript
-const config = {
-    info: { /* plugin metadata */ },
-    changelog: [ /* version history */ ],
-    defaultConfig: []
+module.exports = class StickyMessageAutoResend {
+    constructor() { /* ... */ }
+    start() { /* ... */ }
+    stop() { /* ... */ }
+    // ... other methods
 };
-```
-
-### 3. Library Check
-
-The plugin checks if ZeresPluginLibrary is installed. If not, it shows a modal to download it.
-
-```javascript
-return !global.ZeresPluginLibrary ? class { /* fallback */ } : /* main plugin */
 ```
 
 ## Data Structures
@@ -87,28 +81,28 @@ Stored in BetterDiscord's data storage as JSON:
 
 ## Key Methods
 
-### onStart()
+### start()
 
 Called when plugin is enabled.
 
 ```javascript
-onStart() {
+start() {
     this.loadSettings();           // Load saved tracked messages
     this.patchContextMenu();       // Add context menu items
     this.startMessageDeleteListener(); // Subscribe to events
-    Toasts.success("Plugin started!");
+    BdApi.UI.showToast("Plugin started!", { type: "success" });
 }
 ```
 
-### onStop()
+### stop()
 
 Called when plugin is disabled.
 
 ```javascript
-onStop() {
+stop() {
     this.stopMessageDeleteListener(); // Unsubscribe from events
-    Patcher.unpatchAll();             // Remove patches
-    Toasts.info("Plugin stopped!");
+    BdApi.Patcher.unpatchAll(this.getName());  // Remove patches
+    BdApi.UI.showToast("Plugin stopped!", { type: "info" });
 }
 ```
 
@@ -137,7 +131,9 @@ Subscribes to Discord's MESSAGE_DELETE event.
 
 **Implementation:**
 ```javascript
-const Dispatcher = WebpackModules.getByProps("dispatch", "subscribe");
+const Dispatcher = BdApi.Webpack.getModule(
+    m => m?.subscribe && m?.dispatch
+);
 this.messageDeleteHandler = (event) => {
     if (event.type === "MESSAGE_DELETE") {
         this.handleMessageDelete(event);
@@ -205,20 +201,21 @@ Adds custom menu items to message context menu.
 
 **Implementation:**
 ```javascript
-const MessageContextMenu = WebpackModules.getModule(
-    m => m.default && m.default.displayName === "MessageContextMenu"
+const MessageContextMenu = BdApi.Webpack.getModule(
+    m => m?.default?.displayName === "MessageContextMenu"
 );
 
-Patcher.after(MessageContextMenu, "default", (_, [props], returnValue) => {
+BdApi.Patcher.after(this.getName(), MessageContextMenu, "default", (_, [props], returnValue) => {
     const message = props.message;
     const isTracked = this.trackedMessages.has(message.id);
     
-    returnValue.props.children.push(
-        ContextMenu.buildMenuItem({
-            label: isTracked ? "Untrack Message" : "Track Message (Auto-Resend)",
-            action: () => { /* track or untrack */ }
-        })
-    );
+    const menuItem = BdApi.ContextMenu.buildItem({
+        type: "text",
+        label: isTracked ? "Untrack Message" : "Track Message (Auto-Resend)",
+        action: () => { /* track or untrack */ }
+    });
+    
+    returnValue.props.children.push(menuItem);
 });
 ```
 
@@ -245,11 +242,13 @@ Creates the settings UI.
 
 ### Webpack Modules
 
-The plugin uses Discord's internal Webpack modules:
+The plugin uses Discord's internal Webpack modules via BdApi:
 
 ```javascript
-const { WebpackModules, Patcher, ContextMenu, Toasts, DiscordModules } = Library;
-const { MessageActions, ChannelStore, UserStore } = DiscordModules;
+const Dispatcher = BdApi.Webpack.getModule(m => m?.subscribe && m?.dispatch);
+const MessageActions = BdApi.Webpack.getModule(m => m?.sendMessage && m?.receiveMessage);
+const ChannelStore = BdApi.Webpack.getModule(m => m?.getChannel && m?.hasChannel);
+const UserStore = BdApi.Webpack.getModule(m => m?.getCurrentUser && m?.getUser);
 ```
 
 **Key Modules:**
@@ -307,7 +306,7 @@ try {
     // Operation
 } catch (error) {
     console.error("Error:", error);
-    Toasts.error("User-friendly message");
+    BdApi.UI.showToast("User-friendly message", { type: "error" });
 }
 ```
 
@@ -441,7 +440,6 @@ this.debug = true;
 ### Required
 
 - BetterDiscord (latest version)
-- ZeresPluginLibrary (0.x.x)
 
 ### Discord API
 
@@ -449,6 +447,14 @@ this.debug = true;
 - Uses undocumented APIs (subject to change)
 
 ## Version History
+
+### v2.0.0 - Native API Refactor
+
+Changes:
+- Removed ZeresPluginLibrary dependency
+- Refactored to use BetterDiscord native API only
+- Updated all API calls to use BdApi
+- Improved stability and compatibility
 
 ### v1.0.0 - Initial Release
 
