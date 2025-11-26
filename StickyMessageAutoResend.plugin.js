@@ -2,7 +2,7 @@
  * @name StickyMessageAutoResend
  * @author BetterDiscord Community
  * @description Track ONE message by entering its ID and Channel ID in settings. The message will automatically resend when deleted.
- * @version 5.1.0
+ * @version 5.1.1
  * @authorId 0
  * @website https://github.com
  * @source https://github.com
@@ -17,7 +17,7 @@ module.exports = class StickyMessageAutoResend {
     getName() { return "StickyMessageAutoResend"; }
     getAuthor() { return "BetterDiscord Community"; }
     getDescription() { return "Track ONE message by entering its ID and Channel ID in settings. The message will automatically resend when deleted."; }
-    getVersion() { return "5.1.0"; }
+    getVersion() { return "5.1.1"; }
 
     start() {
         console.log("[StickyMessageAutoResend] Starting plugin...");
@@ -160,18 +160,47 @@ module.exports = class StickyMessageAutoResend {
         }
     }
 
+    getAuthToken() {
+        try {
+            const tokenModule = BdApi.Webpack.getModule(m => m?.getToken && typeof m.getToken === 'function');
+            if (tokenModule) {
+                return tokenModule.getToken();
+            }
+            
+            const altTokenModule = BdApi.Webpack.getModule(m => m?.token);
+            if (altTokenModule?.token) {
+                return altTokenModule.token;
+            }
+            
+            console.error("[StickyMessageAutoResend] Could not find auth token module");
+            return null;
+        } catch (error) {
+            console.error("[StickyMessageAutoResend] Error getting auth token:", error);
+            return null;
+        }
+    }
+
     async resendMessage() {
         if (!this.trackedMessage) return;
 
         try {
             console.log("[StickyMessageAutoResend] Resending via REST API...");
+            
+            const token = this.getAuthToken();
+            if (!token) {
+                console.error("[StickyMessageAutoResend] No auth token available");
+                BdApi.UI.showToast("Failed to resend: No authentication token found", { type: "error" });
+                return;
+            }
+            
             const endpoint = `https://discord.com/api/v9/channels/${this.trackedMessage.channelId}/messages`;
             
             console.log("[StickyMessageAutoResend] Using BdApi.Net.fetch - NOT Discord internal sendMessage");
             const response = await BdApi.Net.fetch(endpoint, {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "Authorization": token
                 },
                 body: JSON.stringify({
                     content: this.trackedMessage.content
