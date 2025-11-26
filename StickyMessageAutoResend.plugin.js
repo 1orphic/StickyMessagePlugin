@@ -52,38 +52,106 @@ module.exports = class StickyMessageAutoResend {
     }
 
     patchContextMenu() {
-        // Find the MessageContextMenu module
-        const MessageContextMenu = BdApi.Webpack.getModule(
-            m => m?.default?.displayName === "MessageContextMenu"
-        );
-        
-        if (MessageContextMenu) {
+        try {
+            const MessageContextMenu = BdApi.ContextMenu.getDiscordMenu("MessageContextMenu");
+            
+            if (!MessageContextMenu) {
+                console.warn("[StickyMessageAutoResend] MessageContextMenu not found, trying alternative method");
+                this.patchContextMenuAlternative();
+                return;
+            }
+            
             BdApi.Patcher.after(this.getName(), MessageContextMenu, "default", (_, [props], returnValue) => {
-                if (!returnValue || !props.message) return;
-                
-                const message = props.message;
-                const isTracked = this.trackedMessages.has(message.id);
-                
-                // Create menu item using native BetterDiscord API
-                const menuItem = BdApi.ContextMenu.buildItem({
-                    type: "text",
-                    label: isTracked ? "Untrack Message" : "Track Message (Auto-Resend)",
-                    action: () => {
-                        if (isTracked) {
-                            this.untrackMessage(message.id);
-                            BdApi.UI.showToast("Message untracked", { type: "info" });
-                        } else {
-                            this.trackMessage(message);
-                            BdApi.UI.showToast("Message is now being tracked!", { type: "success" });
+                try {
+                    if (!returnValue || !props?.message) return;
+                    
+                    const message = props.message;
+                    const isTracked = this.trackedMessages.has(message.id);
+                    
+                    const menuItem = BdApi.ContextMenu.buildItem({
+                        type: "text",
+                        label: isTracked ? "Untrack Message" : "Track Message (Auto-Resend)",
+                        id: "sticky-message-track",
+                        action: () => {
+                            if (isTracked) {
+                                this.untrackMessage(message.id);
+                                BdApi.UI.showToast("Message untracked", { type: "info" });
+                            } else {
+                                this.trackMessage(message);
+                                BdApi.UI.showToast("Message is now being tracked!", { type: "success" });
+                            }
                         }
+                    });
+                    
+                    if (!returnValue?.props?.children) {
+                        console.warn("[StickyMessageAutoResend] Context menu children not found");
+                        return;
                     }
-                });
-                
-                // Add the menu item to the context menu
-                if (returnValue.props.children) {
-                    returnValue.props.children.push(menuItem);
+                    
+                    if (Array.isArray(returnValue.props.children)) {
+                        returnValue.props.children.push(menuItem);
+                    } else {
+                        returnValue.props.children = [returnValue.props.children, menuItem];
+                    }
+                } catch (err) {
+                    console.error("[StickyMessageAutoResend] Error in context menu patch:", err);
                 }
             });
+        } catch (err) {
+            console.error("[StickyMessageAutoResend] Failed to patch context menu:", err);
+        }
+    }
+
+    patchContextMenuAlternative() {
+        try {
+            const MessageContextMenu = BdApi.Webpack.getModule(
+                m => m?.default?.displayName === "MessageContextMenu"
+            );
+            
+            if (!MessageContextMenu) {
+                console.error("[StickyMessageAutoResend] Could not find MessageContextMenu module");
+                BdApi.UI.showToast("Context menu patch failed. Check console for details.", { type: "error" });
+                return;
+            }
+            
+            BdApi.Patcher.after(this.getName(), MessageContextMenu, "default", (_, [props], returnValue) => {
+                try {
+                    if (!returnValue || !props?.message) return;
+                    
+                    const message = props.message;
+                    const isTracked = this.trackedMessages.has(message.id);
+                    
+                    const menuItem = BdApi.ContextMenu.buildItem({
+                        type: "text",
+                        label: isTracked ? "Untrack Message" : "Track Message (Auto-Resend)",
+                        id: "sticky-message-track",
+                        action: () => {
+                            if (isTracked) {
+                                this.untrackMessage(message.id);
+                                BdApi.UI.showToast("Message untracked", { type: "info" });
+                            } else {
+                                this.trackMessage(message);
+                                BdApi.UI.showToast("Message is now being tracked!", { type: "success" });
+                            }
+                        }
+                    });
+                    
+                    if (!returnValue?.props?.children) {
+                        console.warn("[StickyMessageAutoResend] Context menu children not found");
+                        return;
+                    }
+                    
+                    if (Array.isArray(returnValue.props.children)) {
+                        returnValue.props.children.push(menuItem);
+                    } else {
+                        returnValue.props.children = [returnValue.props.children, menuItem];
+                    }
+                } catch (err) {
+                    console.error("[StickyMessageAutoResend] Error in alternative context menu patch:", err);
+                }
+            });
+        } catch (err) {
+            console.error("[StickyMessageAutoResend] Failed to apply alternative context menu patch:", err);
         }
     }
 
