@@ -2,7 +2,7 @@
  * @name StickyMessageAutoResend
  * @author BetterDiscord Community
  * @description Track ONE message by entering its ID and Channel ID in settings. The message will automatically resend when deleted.
- * @version 5.3.0
+ * @version 6.0.0
  * @authorId 0
  * @website https://github.com
  * @source https://github.com
@@ -17,7 +17,7 @@ module.exports = class StickyMessageAutoResend {
     getName() { return "StickyMessageAutoResend"; }
     getAuthor() { return "BetterDiscord Community"; }
     getDescription() { return "Track ONE message by entering its ID and Channel ID in settings. The message will automatically resend when deleted."; }
-    getVersion() { return "5.3.0"; }
+    getVersion() { return "6.0.0"; }
 
     start() {
         console.log("[StickyMessageAutoResend] Starting plugin...");
@@ -119,23 +119,6 @@ module.exports = class StickyMessageAutoResend {
         return dispatcher;
     }
 
-    generateNonce() {
-        // Generate a nonce similar to Discord's format (timestamp-based)
-        return (Date.now() * 4194304).toString();
-    }
-
-    generateMessagePayload(channelId, content) {
-        // Create a message payload structure similar to Discord's internal format
-        return {
-            channel_id: channelId,
-            content: content,
-            nonce: this.generateNonce(),
-            tts: false,
-            invalidEmojis: [],
-            validNonShortcutEmojis: []
-        };
-    }
-
     startMessageDeleteListener() {
         const Dispatcher = this.findDispatcher();
         
@@ -177,39 +160,39 @@ module.exports = class StickyMessageAutoResend {
         }
     }
 
-    resendMessage() {
+    async resendMessage() {
         if (!this.trackedMessage) return;
 
         try {
-            console.log("[StickyMessageAutoResend] Resending message using Dispatcher...");
+            console.log("[StickyMessageAutoResend] Resending message using Discord REST API...");
             
-            const Dispatcher = this.findDispatcher();
-            if (!Dispatcher) {
-                console.error("[StickyMessageAutoResend] Dispatcher module not found");
-                BdApi.UI.showToast("Failed to resend: Dispatcher not found. Try reloading Discord.", { type: "error" });
+            const channelId = this.trackedMessage.channelId;
+            const content = this.trackedMessage.content;
+            
+            // Use Discord's public REST API to send the message
+            const response = await BdApi.Net.fetch(
+                `https://discord.com/api/v9/channels/${channelId}/messages`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ content })
+                }
+            );
+
+            if (!response.ok) {
+                const errorData = await response.text();
+                console.error("[StickyMessageAutoResend] Failed to send message. Status:", response.status, "Response:", errorData);
+                BdApi.UI.showToast(`Failed to resend message (${response.status}). Check console for details.`, { type: "error" });
                 return;
             }
 
-            // Create message payload with proper structure
-            const messagePayload = this.generateMessagePayload(
-                this.trackedMessage.channelId,
-                this.trackedMessage.content
-            );
-
-            console.log("[StickyMessageAutoResend] Dispatching CREATE_PENDING_REPLY with payload:", messagePayload);
-
-            // Dispatch the message send action through Discord's Dispatcher
-            // This triggers Discord's internal message sending flow
-            Dispatcher.dispatch({
-                type: "CREATE_PENDING_REPLY",
-                ...messagePayload
-            });
-
-            console.log("[StickyMessageAutoResend] Message dispatched successfully to channel:", this.trackedMessage.channelId);
+            console.log("[StickyMessageAutoResend] Message sent successfully to channel:", channelId);
             BdApi.UI.showToast("Tracked message resent successfully!", { type: "success" });
 
         } catch (error) {
-            console.error("[StickyMessageAutoResend] Failed to resend message via Dispatcher:", error);
+            console.error("[StickyMessageAutoResend] Failed to resend message:", error);
             BdApi.UI.showToast("Failed to resend message. Check console for details.", { type: "error" });
         }
     }
