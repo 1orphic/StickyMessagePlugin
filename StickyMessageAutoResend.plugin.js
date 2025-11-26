@@ -1,8 +1,8 @@
 /**
  * @name StickyMessageAutoResend
  * @author BetterDiscord Community
- * @description Automatically resends a tracked message if it gets deleted. Press Ctrl+Shift+T to open tracking sidebar.
- * @version 2.2.0
+ * @description Automatically resends tracked messages if they get deleted. Press Ctrl+Shift+T to open tracking sidebar, then click "Select Message" to track by clicking.
+ * @version 2.3.0
  * @authorId 0
  * @website https://github.com
  * @source https://github.com
@@ -15,12 +15,15 @@ module.exports = class StickyMessageAutoResend {
         this.messageCreateHandler = null;
         this.keyboardHandler = null;
         this.sidebarElement = null;
+        this.selectionModeActive = false;
+        this.selectionOverlay = null;
+        this.messageClickHandler = null;
     }
 
     getName() { return "StickyMessageAutoResend"; }
     getAuthor() { return "BetterDiscord Community"; }
-    getDescription() { return "Automatically resends a tracked message if it gets deleted. Press Ctrl+Shift+T to open tracking sidebar."; }
-    getVersion() { return "2.2.0"; }
+    getDescription() { return "Automatically resends tracked messages if they get deleted. Press Ctrl+Shift+T to open tracking sidebar, then click 'Select Message' to track by clicking."; }
+    getVersion() { return "2.3.0"; }
 
     start() {
         this.loadSettings();
@@ -31,6 +34,7 @@ module.exports = class StickyMessageAutoResend {
     }
 
     stop() {
+        this.exitSelectionMode();
         this.stopMessageDeleteListener();
         this.unregisterKeyboardShortcut();
         this.closeSidebar();
@@ -443,7 +447,8 @@ module.exports = class StickyMessageAutoResend {
             <h3 style="margin-top: 0; margin-bottom: 10px;">How to use:</h3>
             <ol style="margin: 0; padding-left: 20px;">
                 <li style="margin-bottom: 5px;"><strong>Recommended:</strong> Press <kbd style="background: var(--background-modifier-accent); padding: 2px 6px; border-radius: 3px; font-family: monospace;">Ctrl+Shift+T</kbd> to open the tracking sidebar</li>
-                <li style="margin-bottom: 5px;">Paste a Discord message link in the sidebar to track it</li>
+                <li style="margin-bottom: 5px;"><strong>Click "Select Message" button</strong> in the sidebar to enter selection mode, then click any message to track it</li>
+                <li style="margin-bottom: 5px;">Or paste a Discord message link in the sidebar to track it</li>
                 <li style="margin-bottom: 5px;">Or right-click on any message and select "Track Message (Auto-Resend)"</li>
                 <li style="margin-bottom: 5px;">The message will automatically be resent if deleted</li>
                 <li>To stop tracking, use the sidebar, right-click the message, or use this panel</li>
@@ -671,11 +676,86 @@ module.exports = class StickyMessageAutoResend {
             then paste it here to track the message.
         `;
 
+        const orDivider = document.createElement('div');
+        orDivider.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 15px 0;
+        `;
+        
+        const dividerLine1 = document.createElement('div');
+        dividerLine1.style.cssText = `
+            flex: 1;
+            height: 1px;
+            background-color: var(--background-modifier-accent);
+        `;
+        
+        const orText = document.createElement('span');
+        orText.textContent = 'OR';
+        orText.style.cssText = `
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 600;
+        `;
+        
+        const dividerLine2 = document.createElement('div');
+        dividerLine2.style.cssText = `
+            flex: 1;
+            height: 1px;
+            background-color: var(--background-modifier-accent);
+        `;
+        
+        orDivider.appendChild(dividerLine1);
+        orDivider.appendChild(orText);
+        orDivider.appendChild(dividerLine2);
+
+        const selectButton = document.createElement('button');
+        selectButton.innerHTML = '🎯 Select Message to Track';
+        selectButton.style.cssText = `
+            width: 100%;
+            padding: 12px;
+            background-color: var(--button-secondary-background);
+            color: var(--text-normal);
+            border: 1px solid var(--button-outline-primary-border);
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.1s;
+        `;
+        selectButton.onmouseover = () => {
+            selectButton.style.backgroundColor = 'var(--button-secondary-background-hover)';
+            selectButton.style.borderColor = 'var(--brand-experiment)';
+        };
+        selectButton.onmouseout = () => {
+            selectButton.style.backgroundColor = 'var(--button-secondary-background)';
+            selectButton.style.borderColor = 'var(--button-outline-primary-border)';
+        };
+        selectButton.onclick = () => {
+            this.closeSidebar();
+            this.enterSelectionMode();
+        };
+
+        const selectHelpText = document.createElement('div');
+        selectHelpText.style.cssText = `
+            color: var(--text-muted);
+            font-size: 12px;
+            line-height: 1.5;
+            text-align: center;
+        `;
+        selectHelpText.innerHTML = `
+            Click this button, then click any message in the channel to track it.
+        `;
+
         inputContainer.appendChild(input);
         inputContainer.appendChild(trackButton);
         inputSection.appendChild(inputLabel);
         inputSection.appendChild(inputContainer);
         inputSection.appendChild(helpText);
+        inputSection.appendChild(orDivider);
+        inputSection.appendChild(selectButton);
+        inputSection.appendChild(selectHelpText);
 
         // Create tracked messages section
         const trackedSection = document.createElement('div');
@@ -723,7 +803,7 @@ module.exports = class StickyMessageAutoResend {
         `;
         footer.innerHTML = `
             <strong style="color: var(--header-secondary);">💡 How it works:</strong><br>
-            Paste a Discord message link above to track it. If the message gets deleted,
+            Click "Select Message to Track" and then click any message in the channel, or paste a Discord message link above to track it. If the message gets deleted,
             it will be automatically resent. Press <kbd style="background: var(--background-modifier-accent); padding: 2px 6px; border-radius: 3px; font-family: monospace;">Ctrl+Shift+T</kbd> to toggle this sidebar.
         `;
 
@@ -948,5 +1028,181 @@ module.exports = class StickyMessageAutoResend {
             console.error('[StickyMessageAutoResend] Error tracking message from link:', error);
             BdApi.UI.showToast("Failed to track message. Check console for details.", { type: "error" });
         }
+    }
+    enterSelectionMode() {
+        if (this.selectionModeActive) {
+            return;
+        }
+
+        this.selectionModeActive = true;
+
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 999;
+            pointer-events: none;
+            background-color: rgba(114, 137, 218, 0.1);
+            animation: fadeIn 0.2s ease-out;
+        `;
+
+        const instructions = document.createElement('div');
+        instructions.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: var(--background-floating);
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: var(--elevation-high);
+            text-align: center;
+            z-index: 1000;
+            pointer-events: none;
+            animation: fadeIn 0.3s ease-out;
+        `;
+        instructions.innerHTML = `
+            <div style="color: var(--header-primary); font-size: 16px; font-weight: 600; margin-bottom: 8px;">
+                🎯 Click a message to track it
+            </div>
+            <div style="color: var(--text-muted); font-size: 13px;">
+                Press <kbd style="background: var(--background-modifier-accent); padding: 2px 6px; border-radius: 3px; font-family: monospace;">Escape</kbd> to cancel
+            </div>
+        `;
+
+        overlay.appendChild(instructions);
+        document.body.appendChild(overlay);
+        this.selectionOverlay = overlay;
+
+        this.messageClickHandler = (event) => {
+            const messageElement = event.target.closest('[class*="message-"]');
+            if (messageElement) {
+                this.handleMessageClick(messageElement);
+            }
+        };
+
+        const chatContainer = document.querySelector('[class*="messagesWrapper-"]') || 
+                            document.querySelector('[class*="chatContent-"]') ||
+                            document.querySelector('[data-list-id^="chat-messages"]');
+        
+        if (chatContainer) {
+            chatContainer.style.cursor = 'pointer';
+            chatContainer.addEventListener('click', this.messageClickHandler, true);
+        }
+
+        const escapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                this.exitSelectionMode();
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
+        
+        if (this.selectionOverlay) {
+            this.selectionOverlay.escapeHandler = escapeHandler;
+        }
+
+        BdApi.UI.showToast("Click on any message to track it", { type: "info" });
+    }
+
+    exitSelectionMode() {
+        if (!this.selectionModeActive) {
+            return;
+        }
+
+        this.selectionModeActive = false;
+
+        if (this.selectionOverlay) {
+            if (this.selectionOverlay.escapeHandler) {
+                document.removeEventListener('keydown', this.selectionOverlay.escapeHandler);
+            }
+            this.selectionOverlay.remove();
+            this.selectionOverlay = null;
+        }
+
+        if (this.messageClickHandler) {
+            const chatContainer = document.querySelector('[class*="messagesWrapper-"]') || 
+                                document.querySelector('[class*="chatContent-"]') ||
+                                document.querySelector('[data-list-id^="chat-messages"]');
+            
+            if (chatContainer) {
+                chatContainer.style.cursor = '';
+                chatContainer.removeEventListener('click', this.messageClickHandler, true);
+            }
+            this.messageClickHandler = null;
+        }
+    }
+
+    handleMessageClick(messageElement) {
+        try {
+            const reactInstance = this.getReactInstance(messageElement);
+            if (!reactInstance) {
+                BdApi.UI.showToast("Could not access message data", { type: "error" });
+                this.exitSelectionMode();
+                return;
+            }
+
+            const messageProps = this.findMessageProps(reactInstance);
+            if (!messageProps || !messageProps.message) {
+                BdApi.UI.showToast("Could not find message information", { type: "error" });
+                this.exitSelectionMode();
+                return;
+            }
+
+            const message = messageProps.message;
+            
+            if (this.trackedMessages.has(message.id)) {
+                BdApi.UI.showToast("This message is already being tracked", { type: "info" });
+                this.exitSelectionMode();
+                return;
+            }
+
+            this.trackMessage(message);
+            BdApi.UI.showToast("Message is now being tracked!", { type: "success" });
+            this.exitSelectionMode();
+            this.refreshTrackedMessages();
+        } catch (error) {
+            console.error('[StickyMessageAutoResend] Error handling message click:', error);
+            BdApi.UI.showToast("Failed to track message. Check console for details.", { type: "error" });
+            this.exitSelectionMode();
+        }
+    }
+
+    getReactInstance(element) {
+        if (!element) return null;
+        
+        for (const key in element) {
+            if (key.startsWith('__reactInternalInstance$') || key.startsWith('__reactFiber$')) {
+                return element[key];
+            }
+        }
+        return null;
+    }
+
+    findMessageProps(fiber) {
+        if (!fiber) return null;
+        
+        let current = fiber;
+        let depth = 0;
+        const maxDepth = 30;
+
+        while (current && depth < maxDepth) {
+            if (current.memoizedProps?.message) {
+                return current.memoizedProps;
+            }
+            
+            if (current.return) {
+                current = current.return;
+            } else if (current.child) {
+                current = current.child;
+            } else {
+                break;
+            }
+            depth++;
+        }
+
+        return null;
     }
 };
