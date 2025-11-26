@@ -127,7 +127,7 @@ module.exports = class StickyMessageAutoResend {
     generateMessagePayload(channelId, content) {
         // Create a message payload structure similar to Discord's internal format
         return {
-            channelId: channelId,
+            channel_id: channelId,
             content: content,
             nonce: this.generateNonce(),
             tts: false,
