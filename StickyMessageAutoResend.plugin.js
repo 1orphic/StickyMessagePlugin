@@ -2,7 +2,7 @@
  * @name StickyMessageAutoResend
  * @author BetterDiscord Community
  * @description Track ONE message by entering its ID in settings. The message will automatically resend when deleted.
- * @version 4.0.0
+ * @version 4.0.1
  * @authorId 0
  * @website https://github.com
  * @source https://github.com
@@ -17,7 +17,7 @@ module.exports = class StickyMessageAutoResend {
     getName() { return "StickyMessageAutoResend"; }
     getAuthor() { return "BetterDiscord Community"; }
     getDescription() { return "Track ONE message by entering its ID in settings. The message will automatically resend when deleted."; }
-    getVersion() { return "4.0.0"; }
+    getVersion() { return "4.0.1"; }
 
     start() {
         console.log("[StickyMessageAutoResend] Starting plugin...");
@@ -53,14 +53,68 @@ module.exports = class StickyMessageAutoResend {
         }
     }
 
+    findMessageStore() {
+        // Try multiple patterns to find MessageStore
+        let store = BdApi.Webpack.getModule(m => m?.getMessage && m?.getMessages);
+        if (!store) {
+            // Try alternative pattern
+            store = BdApi.Webpack.getModule(m => m?.getMessage && m?.hasPresent);
+        }
+        if (!store) {
+            // Try searching by multiple methods
+            store = BdApi.Webpack.getModule(m => typeof m?.getMessage === 'function' && typeof m?.getMessages === 'function');
+        }
+        if (!store) {
+            // Try using Filters if available
+            try {
+                if (BdApi.Webpack.Filters) {
+                    store = BdApi.Webpack.getModule(BdApi.Webpack.Filters.byProps("getMessage", "getMessages"));
+                }
+            } catch (e) {
+                console.warn("[StickyMessageAutoResend] Filters API not available:", e);
+            }
+        }
+        return store;
+    }
+
+    findChannelStore() {
+        // Try multiple patterns to find ChannelStore
+        let store = BdApi.Webpack.getModule(m => m?.getChannel && m?.getSelectedChannelId);
+        if (!store) {
+            // Try alternative pattern
+            store = BdApi.Webpack.getModule(m => m?.getChannel && m?.hasChannel);
+        }
+        if (!store) {
+            // Try searching by multiple methods
+            store = BdApi.Webpack.getModule(m => typeof m?.getChannel === 'function' && typeof m?.getDMFromUserId === 'function');
+        }
+        if (!store) {
+            // Try using Filters if available
+            try {
+                if (BdApi.Webpack.Filters) {
+                    store = BdApi.Webpack.getModule(BdApi.Webpack.Filters.byProps("getChannel", "getDMFromUserId"));
+                }
+            } catch (e) {
+                console.warn("[StickyMessageAutoResend] Filters API not available:", e);
+            }
+        }
+        return store;
+    }
+
     async trackMessageById(messageId, channelId) {
         try {
-            const MessageStore = BdApi.Webpack.getModule(m => m?.getMessage && m?.getMessages);
-            const ChannelStore = BdApi.Webpack.getModule(m => m?.getChannel && m?.getSelectedChannelId);
+            const MessageStore = this.findMessageStore();
+            const ChannelStore = this.findChannelStore();
             
-            if (!MessageStore || !ChannelStore) {
-                console.error("[StickyMessageAutoResend] Required stores not found");
-                BdApi.UI.showToast("Failed to track message: Discord stores not found", { type: "error" });
+            if (!MessageStore) {
+                console.error("[StickyMessageAutoResend] MessageStore not found");
+                BdApi.UI.showToast("Failed to find Discord's MessageStore. Try reloading Discord.", { type: "error" });
+                return false;
+            }
+
+            if (!ChannelStore) {
+                console.error("[StickyMessageAutoResend] ChannelStore not found");
+                BdApi.UI.showToast("Failed to find Discord's ChannelStore. Try reloading Discord.", { type: "error" });
                 return false;
             }
 
@@ -105,12 +159,36 @@ module.exports = class StickyMessageAutoResend {
         BdApi.UI.showToast("Message untracked.", { type: "info" });
     }
 
+    findDispatcher() {
+        // Try multiple patterns to find Dispatcher
+        let dispatcher = BdApi.Webpack.getModule(m => m?.subscribe && m?.dispatch);
+        if (!dispatcher) {
+            // Try alternative pattern
+            dispatcher = BdApi.Webpack.getModule(m => m?.subscribe && m?.unsubscribe);
+        }
+        if (!dispatcher) {
+            // Try searching by all dispatch methods
+            dispatcher = BdApi.Webpack.getModule(m => typeof m?.subscribe === 'function' && typeof m?.dispatch === 'function');
+        }
+        if (!dispatcher) {
+            // Try using Filters if available
+            try {
+                if (BdApi.Webpack.Filters) {
+                    dispatcher = BdApi.Webpack.getModule(BdApi.Webpack.Filters.byProps("subscribe", "dispatch"));
+                }
+            } catch (e) {
+                console.warn("[StickyMessageAutoResend] Filters API not available:", e);
+            }
+        }
+        return dispatcher;
+    }
+
     startMessageDeleteListener() {
-        const Dispatcher = BdApi.Webpack.getModule(m => m?.subscribe && m?.dispatch);
+        const Dispatcher = this.findDispatcher();
         
         if (!Dispatcher) {
             console.error("[StickyMessageAutoResend] Could not find Dispatcher module");
-            BdApi.UI.showToast("Failed to start: Dispatcher not found", { type: "error" });
+            BdApi.UI.showToast("Failed to start: Dispatcher not found. Try reloading Discord.", { type: "error" });
             return;
         }
 
@@ -126,7 +204,7 @@ module.exports = class StickyMessageAutoResend {
 
     stopMessageDeleteListener() {
         if (this.messageDeleteHandler) {
-            const Dispatcher = BdApi.Webpack.getModule(m => m?.subscribe && m?.dispatch);
+            const Dispatcher = this.findDispatcher();
             if (Dispatcher) {
                 Dispatcher.unsubscribe("MESSAGE_DELETE", this.messageDeleteHandler);
             }
@@ -146,15 +224,39 @@ module.exports = class StickyMessageAutoResend {
         }
     }
 
+    findMessageActions() {
+        // Try multiple patterns to find MessageActions
+        let actions = BdApi.Webpack.getModule(m => m?.sendMessage && m?.receiveMessage);
+        if (!actions) {
+            // Try alternative pattern
+            actions = BdApi.Webpack.getModule(m => m?.sendMessage && m?.editMessage);
+        }
+        if (!actions) {
+            // Try searching by sendMessage only (more reliable)
+            actions = BdApi.Webpack.getModule(m => typeof m?.sendMessage === 'function');
+        }
+        if (!actions) {
+            // Try using Filters if available
+            try {
+                if (BdApi.Webpack.Filters) {
+                    actions = BdApi.Webpack.getModule(BdApi.Webpack.Filters.byProps("sendMessage", "editMessage"));
+                }
+            } catch (e) {
+                console.warn("[StickyMessageAutoResend] Filters API not available:", e);
+            }
+        }
+        return actions;
+    }
+
     async resendMessage() {
         if (!this.trackedMessage) return;
 
         try {
-            const MessageActions = BdApi.Webpack.getModule(m => m?.sendMessage && m?.receiveMessage);
+            const MessageActions = this.findMessageActions();
             
             if (!MessageActions) {
                 console.error("[StickyMessageAutoResend] MessageActions not found");
-                BdApi.UI.showToast("Failed to resend: MessageActions not found", { type: "error" });
+                BdApi.UI.showToast("Failed to resend: MessageActions not found. Try reloading Discord.", { type: "error" });
                 return;
             }
 
@@ -183,7 +285,7 @@ module.exports = class StickyMessageAutoResend {
 
     async updateTrackedMessageId() {
         try {
-            const MessageStore = BdApi.Webpack.getModule(m => m?.getMessage && m?.getMessages);
+            const MessageStore = this.findMessageStore();
             
             if (!MessageStore) {
                 console.warn("[StickyMessageAutoResend] Could not find MessageStore to update message ID");
@@ -325,7 +427,7 @@ module.exports = class StickyMessageAutoResend {
         statusSection.appendChild(statusTitle);
 
         if (this.trackedMessage) {
-            const ChannelStore = BdApi.Webpack.getModule(m => m?.getChannel && m?.hasChannel);
+            const ChannelStore = this.findChannelStore();
             const channel = ChannelStore ? ChannelStore.getChannel(this.trackedMessage.channelId) : null;
             const channelName = channel ? `#${channel.name}` : "Unknown Channel";
 
