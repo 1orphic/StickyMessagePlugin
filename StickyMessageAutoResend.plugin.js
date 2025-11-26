@@ -2,7 +2,7 @@
  * @name StickyMessageAutoResend
  * @author BetterDiscord Community
  * @description Track ONE message by entering its ID and Channel ID in settings. The message will automatically resend when deleted.
- * @version 5.0.0
+ * @version 5.1.0
  * @authorId 0
  * @website https://github.com
  * @source https://github.com
@@ -17,7 +17,7 @@ module.exports = class StickyMessageAutoResend {
     getName() { return "StickyMessageAutoResend"; }
     getAuthor() { return "BetterDiscord Community"; }
     getDescription() { return "Track ONE message by entering its ID and Channel ID in settings. The message will automatically resend when deleted."; }
-    getVersion() { return "5.0.0"; }
+    getVersion() { return "5.1.0"; }
 
     start() {
         console.log("[StickyMessageAutoResend] Starting plugin...");
@@ -164,8 +164,10 @@ module.exports = class StickyMessageAutoResend {
         if (!this.trackedMessage) return;
 
         try {
+            console.log("[StickyMessageAutoResend] Resending via REST API...");
             const endpoint = `https://discord.com/api/v9/channels/${this.trackedMessage.channelId}/messages`;
             
+            console.log("[StickyMessageAutoResend] Using BdApi.Net.fetch - NOT Discord internal sendMessage");
             const response = await BdApi.Net.fetch(endpoint, {
                 method: "POST",
                 headers: {
@@ -178,16 +180,18 @@ module.exports = class StickyMessageAutoResend {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                console.error("[StickyMessageAutoResend] API error:", response.status, errorData);
+                console.error("[StickyMessageAutoResend] REST API error:", response.status, errorData);
                 BdApi.UI.showToast(`Failed to resend: ${response.status} ${response.statusText}`, { type: "error" });
                 return;
             }
             
-            console.log("[StickyMessageAutoResend] Message resent successfully to channel:", this.trackedMessage.channelId);
-            BdApi.UI.showToast("Tracked message resent!", { type: "success" });
+            const responseData = await response.json();
+            console.log("[StickyMessageAutoResend] Message resent successfully via REST API to channel:", this.trackedMessage.channelId);
+            console.log("[StickyMessageAutoResend] New message ID:", responseData.id);
+            BdApi.UI.showToast("Tracked message resent via REST API!", { type: "success" });
 
         } catch (error) {
-            console.error("[StickyMessageAutoResend] Failed to resend message:", error);
+            console.error("[StickyMessageAutoResend] Failed to resend message via REST API:", error);
             BdApi.UI.showToast("Failed to resend message. Check console.", { type: "error" });
         }
     }
