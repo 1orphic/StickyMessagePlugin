@@ -4,10 +4,10 @@ A BetterDiscord plugin that automatically resends a tracked message if it gets d
 
 ## Features
 
-- **Simple Button Interface**: Hover over any message and click the 📌 pin button to track it
+- **Settings Panel Interface**: Enter a message ID in the plugin settings to track it
 - **Track ONE Message**: Focus on reliability - track one message at a time
 - **Auto-Resend**: When the tracked message is deleted, it's automatically resent to the same channel
-- **Settings Panel**: View and manage your tracked message from the plugin settings
+- **Simple & Reliable**: No DOM manipulation, no context menus - just pure BdApi
 - **Persistent Storage**: Tracked message is saved and restored when Discord restarts
 - **Visual Feedback**: Toast notifications for all actions
 
@@ -22,21 +22,26 @@ A BetterDiscord plugin that automatically resends a tracked message if it gets d
 
 ## Usage
 
+### Prerequisites
+
+Enable Developer Mode in Discord to access message IDs:
+1. Open Discord Settings
+2. Go to Advanced
+3. Enable "Developer Mode"
+
 ### Tracking a Message
 
-1. Hover over any message in Discord
-2. Click the 📌 pin button that appears in the message toolbar
-3. You'll see a success notification confirming the message is being tracked
+1. Right-click on any message in Discord
+2. Select "Copy Message ID" from the context menu
+3. Open Discord Settings → Plugins → Sticky Message Auto-Resend → Settings
+4. Paste the message ID into the input field
+5. Click "Track Message"
+6. You'll see a success notification confirming the message is being tracked
 
 ### Untracking a Message
 
-**Method 1: Click the button again**
-1. Hover over the tracked message
-2. Click the 📌 pin button again to untrack
-
-**Method 2: Settings Panel**
 1. Open Discord Settings
-2. Go to Plugins → Sticky Message Auto-Resend
+2. Go to Plugins → Sticky Message Auto-Resend → Settings
 3. Click "Untrack Message"
 
 ### How It Works
@@ -71,11 +76,16 @@ When a tracked message is deleted:
 ### Plugin not loading
 - Ensure BetterDiscord is properly installed
 - Look for errors in the console (Ctrl+Shift+I)
+- Check that the plugin file is in the correct folder
 
-### Button not appearing
-- Try scrolling up and down to refresh messages
-- Check that the plugin is enabled
-- Reload Discord with Ctrl+R
+### "Copy Message ID" not visible
+- Enable Developer Mode in Discord Settings → Advanced
+- Right-click on a message to see the option
+
+### Message not found when tracking
+- Make sure you copied the full message ID
+- Navigate to the channel containing the message
+- The message must still exist to be tracked
 
 ### Message not resending
 - Verify you have permission to send messages in the channel
@@ -89,14 +99,14 @@ When a tracked message is deleted:
 ## Development
 
 The plugin is built using:
-- BetterDiscord native API (BdApi)
+- BetterDiscord native API (BdApi) only
 - Discord's internal Webpack modules for message handling
-- MutationObserver for DOM monitoring
+- No DOM manipulation or patching
 
 ### Key Components
 
-- **Button Injection**: Uses MutationObserver to watch for messages and inject 📌 buttons
-- **Message Tracking**: Stores message data (ID, channel, content) in memory and localStorage
+- **Settings Panel**: Simple HTML form for message ID input
+- **Message Tracking**: Stores message data (ID, channel, content) in BdApi.Data storage
 - **Event Listening**: Subscribes to Discord's MESSAGE_DELETE dispatcher events
 - **Auto-Resend**: Uses MessageActions to resend deleted messages
 
@@ -110,6 +120,19 @@ Contributions, issues, and feature requests are welcome!
 
 ## Changelog
 
+### v4.0.0 - Settings Panel Only (Ultra-Reliable)
+- **BREAKING**: Completely removed all DOM manipulation and button injection
+- **FIXED**: No more "ContextMenu~Patcher" errors
+- **FIXED**: No more "Could not find chat container" errors
+- Removed all button injection code (MutationObserver, DOM searching)
+- Removed all context menu patching
+- Added settings panel with message ID input field
+- Users now manually enter message ID from "Copy Message ID" option
+- Reduced code from 452 lines to 377 lines (16% reduction from v3)
+- Uses ONLY reliable BetterDiscord APIs
+- Zero DOM manipulation = zero UI-related errors
+- Cleaner, more maintainable code
+
 ### v3.0.0 - Simplified Core Functionality
 - **BREAKING**: Completely rebuilt from scratch for simplicity and reliability
 - Removed context menu integration (unreliable)
@@ -117,7 +140,7 @@ Contributions, issues, and feature requests are welcome!
 - Removed multiple message tracking
 - Added simple 📌 button injection into message toolbar
 - Now tracks only ONE message at a time
-- Reduced code from 1,209 lines to 406 lines (66% reduction)
+- Reduced code from 1,209 lines to 452 lines (63% reduction)
 - Focus on core functionality: track one message, auto-resend when deleted
 - Improved reliability with simpler implementation
 
