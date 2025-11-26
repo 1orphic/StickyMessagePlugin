@@ -120,6 +120,14 @@ Contributions, issues, and feature requests are welcome!
 
 ## Changelog
 
+### v4.0.1 - Store Finding Improvements
+- **FIXED**: "Required stores not found" error when tracking messages
+- Improved Discord module detection with multiple fallback patterns
+- Added support for BdApi.Webpack.Filters API
+- More robust Webpack module finding for MessageStore, ChannelStore, MessageActions, and Dispatcher
+- Better error messages with actionable feedback ("Try reloading Discord")
+- Each Discord module now has 4 different search patterns for maximum compatibility
+
 ### v4.0.0 - Settings Panel Only (Ultra-Reliable)
 - **BREAKING**: Completely removed all DOM manipulation and button injection
 - **FIXED**: No more "ContextMenu~Patcher" errors
