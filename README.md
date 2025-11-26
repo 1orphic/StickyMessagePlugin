@@ -4,11 +4,13 @@ A BetterDiscord plugin that automatically resends a tracked message if it gets d
 
 ## Features
 
-- **Track Messages**: Right-click any message and select "Track Message (Auto-Resend)" to start monitoring it
+- **Pop-up Tracking Menu**: Press `Ctrl+Shift+T` to open a personal pop-up menu to track messages in the current channel
+- **Track Messages**: Right-click any message and select "Track Message (Auto-Resend)" to start monitoring it, or use the pop-up menu
 - **Auto-Resend**: When a tracked message is deleted, it's automatically resent to the same channel
 - **Multiple Messages**: Track multiple messages across different channels
 - **Settings Panel**: View and manage all tracked messages from the plugin settings
 - **Persistent Storage**: Tracked messages are saved and restored when Discord restarts
+- **Visual Feedback**: Pop-up menu shows which messages are already tracked with clear visual indicators
 
 ## Installation
 
@@ -23,17 +25,29 @@ A BetterDiscord plugin that automatically resends a tracked message if it gets d
 
 ### Tracking a Message
 
+**Method 1: Pop-up Menu (Recommended)**
+1. Navigate to the channel with the message you want to track
+2. Press `Ctrl+Shift+T` to open the tracking menu
+3. Browse the list of recent messages
+4. Click "Track" next to the message you want to monitor
+5. You'll see a success notification and visual feedback
+
+**Method 2: Context Menu**
 1. Right-click on any message you want to track
 2. Click "Track Message (Auto-Resend)" from the context menu
 3. You'll see a success notification confirming the message is being tracked
 
 ### Untracking a Message
 
-**Method 1: Context Menu**
+**Method 1: Pop-up Menu**
+1. Press `Ctrl+Shift+T` to open the tracking menu
+2. Click "Untrack" next to the message you want to stop monitoring
+
+**Method 2: Context Menu**
 1. Right-click on the tracked message
 2. Click "Untrack Message"
 
-**Method 2: Settings Panel**
+**Method 3: Settings Panel**
 1. Open Discord Settings
 2. Go to Plugins → Sticky Message Auto-Resend
 3. Click "Untrack" next to the message you want to remove
@@ -101,6 +115,20 @@ This plugin is provided as-is for use with BetterDiscord.
 Contributions, issues, and feature requests are welcome!
 
 ## Changelog
+
+### v2.1.0 - Pop-up Menu Feature
+- Added personal pop-up/modal UI for tracking messages (Press `Ctrl+Shift+T`)
+- Display recent messages with preview, author, and timestamp
+- Visual indicators for tracked messages
+- Easy track/untrack buttons in the pop-up
+- Keyboard shortcut support (`Ctrl+Shift+T` to open, `Esc` to close)
+- Shows user's own messages with "YOU" badge
+- Improved user experience with animations and Discord-themed styling
+
+### v2.0.0 - Stability Update
+- Improved context menu patching with fallback methods
+- Enhanced error handling and user feedback
+- Updated to use native BetterDiscord API
 
 ### v1.0.0 - Initial Release
 - Track specific messages via context menu
