@@ -21,34 +21,52 @@ Get started with Sticky Message Auto-Resend in 3 minutes!
 
 ### Track Your First Message
 
+**Method 1: Pop-up Menu (Recommended) ⚡**
+
 1. **Send a test message**
    ```
    This is my important message that should never be deleted!
    ```
 
-2. **Right-click the message**
-   - A context menu will appear
+2. **Press `Ctrl+Shift+T`**
+   - A tracking menu will pop up showing recent messages
 
-3. **Click "Track Message (Auto-Resend)"**
+3. **Click "Track" next to your message**
    - You'll see a success notification ✅
+   - The message will be highlighted with a blue border
 
 4. **Test it out**
+   - Close the pop-up (press `Esc` or click outside)
    - Delete the message you just tracked
    - Watch it automatically reappear! 🎉
 
+**Method 2: Context Menu (Alternative)**
+
+1. **Right-click the message** you want to track
+2. **Click "Track Message (Auto-Resend)"**
+3. You'll see a success notification ✅
+
 ### View Your Tracked Messages
 
+**Option 1: Pop-up Menu**
+- Press `Ctrl+Shift+T` to see tracked messages highlighted in blue
+
+**Option 2: Settings Panel**
 1. Open Discord Settings
 2. Go to Plugins → Sticky Message Auto-Resend
 3. You'll see all your tracked messages listed
 
 ### Stop Tracking a Message
 
-**Method 1: Context Menu**
+**Method 1: Pop-up Menu (Fastest)**
+- Press `Ctrl+Shift+T`
+- Click "Untrack" next to the message
+
+**Method 2: Context Menu**
 - Right-click the tracked message
 - Click "Untrack Message"
 
-**Method 2: Settings**
+**Method 3: Settings Panel**
 - Open plugin settings
 - Click "Untrack" next to the message
 
@@ -75,6 +93,7 @@ Can't be removed by accident
 ## Tips
 
 ✅ **Do:**
+- Use `Ctrl+Shift+T` for quick access to the tracking menu
 - Track important announcements
 - Use for rules and guidelines
 - Track scheduled event reminders
