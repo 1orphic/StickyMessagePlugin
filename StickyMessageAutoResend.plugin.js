@@ -2,7 +2,7 @@
  * @name StickyMessageAutoResend
  * @author BetterDiscord Community
  * @description Track ONE message by entering its ID and Channel ID in settings. The message will automatically resend when deleted.
- * @version 5.2.0
+ * @version 5.3.0
  * @authorId 0
  * @website https://github.com
  * @source https://github.com
@@ -17,7 +17,7 @@ module.exports = class StickyMessageAutoResend {
     getName() { return "StickyMessageAutoResend"; }
     getAuthor() { return "BetterDiscord Community"; }
     getDescription() { return "Track ONE message by entering its ID and Channel ID in settings. The message will automatically resend when deleted."; }
-    getVersion() { return "5.2.0"; }
+    getVersion() { return "5.3.0"; }
 
     start() {
         console.log("[StickyMessageAutoResend] Starting plugin...");
@@ -119,51 +119,21 @@ module.exports = class StickyMessageAutoResend {
         return dispatcher;
     }
 
-    findMessageActions() {
-        // Pattern 1: Direct property check for sendMessage
-        let messageActions = BdApi.Webpack.getModule(m => m?.sendMessage && typeof m.sendMessage === 'function');
-        if (messageActions) {
-            console.log("[StickyMessageAutoResend] Found MessageActions with pattern 1");
-            return messageActions;
-        }
+    generateNonce() {
+        // Generate a nonce similar to Discord's format (timestamp-based)
+        return (Date.now() * 4194304).toString();
+    }
 
-        // Pattern 2: Check for sendMessage with other common MessageActions methods
-        messageActions = BdApi.Webpack.getModule(m => 
-            m?.sendMessage && 
-            typeof m.sendMessage === 'function' && 
-            typeof m.editMessage === 'function'
-        );
-        if (messageActions) {
-            console.log("[StickyMessageAutoResend] Found MessageActions with pattern 2");
-            return messageActions;
-        }
-
-        // Pattern 3: Use Filters API if available
-        try {
-            if (BdApi.Webpack.Filters) {
-                messageActions = BdApi.Webpack.getModule(BdApi.Webpack.Filters.byProps("sendMessage", "editMessage"));
-                if (messageActions) {
-                    console.log("[StickyMessageAutoResend] Found MessageActions with pattern 3 (Filters)");
-                    return messageActions;
-                }
-            }
-        } catch (e) {
-            console.warn("[StickyMessageAutoResend] Filters API not available:", e);
-        }
-
-        // Pattern 4: Search by multiple properties to ensure we get the right module
-        messageActions = BdApi.Webpack.getModule(m => 
-            m?.sendMessage && 
-            m?.deleteMessage && 
-            typeof m.sendMessage === 'function'
-        );
-        if (messageActions) {
-            console.log("[StickyMessageAutoResend] Found MessageActions with pattern 4");
-            return messageActions;
-        }
-
-        console.error("[StickyMessageAutoResend] Could not find MessageActions module with any pattern");
-        return null;
+    generateMessagePayload(channelId, content) {
+        // Create a message payload structure similar to Discord's internal format
+        return {
+            channelId: channelId,
+            content: content,
+            nonce: this.generateNonce(),
+            tts: false,
+            invalidEmojis: [],
+            validNonShortcutEmojis: []
+        };
     }
 
     startMessageDeleteListener() {
@@ -207,35 +177,39 @@ module.exports = class StickyMessageAutoResend {
         }
     }
 
-    async resendMessage() {
+    resendMessage() {
         if (!this.trackedMessage) return;
 
         try {
-            console.log("[StickyMessageAutoResend] Resending message using MessageActions.sendMessage...");
+            console.log("[StickyMessageAutoResend] Resending message using Dispatcher...");
             
-            const MessageActions = this.findMessageActions();
-            if (!MessageActions) {
-                console.error("[StickyMessageAutoResend] MessageActions module not found");
-                BdApi.UI.showToast("Failed to resend: MessageActions not found. Try reloading Discord.", { type: "error" });
+            const Dispatcher = this.findDispatcher();
+            if (!Dispatcher) {
+                console.error("[StickyMessageAutoResend] Dispatcher module not found");
+                BdApi.UI.showToast("Failed to resend: Dispatcher not found. Try reloading Discord.", { type: "error" });
                 return;
             }
 
-            console.log("[StickyMessageAutoResend] Calling MessageActions.sendMessage with channelId and message object");
-            
-            // Call sendMessage with correct parameters: channelId and message object with content
-            // Do NOT include nonce or other undefined properties
-            const result = await MessageActions.sendMessage(
+            // Create message payload with proper structure
+            const messagePayload = this.generateMessagePayload(
                 this.trackedMessage.channelId,
-                {
-                    content: this.trackedMessage.content
-                }
+                this.trackedMessage.content
             );
 
-            console.log("[StickyMessageAutoResend] Message sent successfully via MessageActions to channel:", this.trackedMessage.channelId);
+            console.log("[StickyMessageAutoResend] Dispatching CREATE_PENDING_REPLY with payload:", messagePayload);
+
+            // Dispatch the message send action through Discord's Dispatcher
+            // This triggers Discord's internal message sending flow
+            Dispatcher.dispatch({
+                type: "CREATE_PENDING_REPLY",
+                ...messagePayload
+            });
+
+            console.log("[StickyMessageAutoResend] Message dispatched successfully to channel:", this.trackedMessage.channelId);
             BdApi.UI.showToast("Tracked message resent successfully!", { type: "success" });
 
         } catch (error) {
-            console.error("[StickyMessageAutoResend] Failed to resend message via MessageActions:", error);
+            console.error("[StickyMessageAutoResend] Failed to resend message via Dispatcher:", error);
             BdApi.UI.showToast("Failed to resend message. Check console for details.", { type: "error" });
         }
     }
