@@ -21,9 +21,8 @@
 
 ### Plugin Structure
 - [x] Proper meta header with plugin information
-- [x] Configuration object with changelog
-- [x] ZeresPluginLibrary integration with fallback
-- [x] Main plugin class extending Plugin base class
+- [x] Main plugin class with standard methods
+- [x] Uses BetterDiscord native API (BdApi)
 
 ### Core Functionality
 - [x] `onStart()` method - initialize plugin
@@ -114,7 +113,7 @@
 ### BetterDiscord Standards
 - [x] Proper plugin meta format
 - [x] Uses BdApi correctly
-- [x] Uses ZeresPluginLibrary utilities
+- [x] Uses native BetterDiscord API only
 - [x] Proper patch application/removal
 - [x] Event cleanup on disable
 - [x] No memory leaks

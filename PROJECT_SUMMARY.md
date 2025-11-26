@@ -65,7 +65,7 @@ This project implements a BetterDiscord plugin that automatically resends tracke
 
 ### Technical Excellence
 - ✅ Follows BetterDiscord conventions
-- ✅ Uses ZeresPluginLibrary utilities
+- ✅ Uses BetterDiscord native API only (BdApi)
 - ✅ Proper event handling (subscribe/unsubscribe)
 - ✅ Memory management (cleanup on disable)
 - ✅ Error handling with try-catch
@@ -89,10 +89,8 @@ This project implements a BetterDiscord plugin that automatically resends tracke
 ```
 StickyMessageAutoResend
 ├── Meta Header (BetterDiscord parsing)
-├── Configuration Object
-├── Library Fallback Handler
 └── Main Plugin Class
-    ├── onStart() / onStop()
+    ├── start() / stop()
     ├── Message Tracking (track/untrack)
     ├── Event Handling (delete/create listeners)
     ├── Message Operations (resend logic)
@@ -131,9 +129,8 @@ StickyMessageAutoResend
 5. ✅ Plugin disabled/re-enabled
 6. ✅ Discord restart/reload
 7. ✅ Corrupted save data
-8. ✅ Missing dependencies (ZeresPluginLibrary)
-9. ✅ Network failures during resend
-10. ✅ Rate limiting
+8. ✅ Network failures during resend
+9. ✅ Rate limiting
 
 ## Documentation Quality
 
@@ -238,19 +235,24 @@ StickyMessageAutoResend
 
 ### Required
 - BetterDiscord (latest)
-- ZeresPluginLibrary (any version)
 
 ### No External Dependencies
 - No npm packages needed
 - No build process required
 - Single file distribution
 - Works in Discord's environment
+- Uses only native BetterDiscord API
 
 ## License
 
 MIT License - Free for personal and commercial use
 
 ## Version
+
+**v2.0.0** - Native API Refactor (Current)
+- Removed ZeresPluginLibrary dependency
+- Refactored to use BetterDiscord native API only
+- Improved stability and compatibility
 
 **v1.0.0** - Initial Release
 

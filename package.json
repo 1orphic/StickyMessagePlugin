@@ -1,6 +1,6 @@
 {
   "name": "sticky-message-auto-resend",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "A BetterDiscord plugin that automatically resends a tracked message if it gets deleted",
   "main": "StickyMessageAutoResend.plugin.js",
   "keywords": [
