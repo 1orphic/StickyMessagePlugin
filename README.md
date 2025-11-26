@@ -4,13 +4,13 @@ A BetterDiscord plugin that automatically resends a tracked message if it gets d
 
 ## Features
 
-- **Pop-up Tracking Menu**: Press `Ctrl+Shift+T` to open a personal pop-up menu to track messages in the current channel
-- **Track Messages**: Right-click any message and select "Track Message (Auto-Resend)" to start monitoring it, or use the pop-up menu
+- **Sidebar with Message Link Input**: Press `Ctrl+Shift+T` to open a sidebar where you can paste Discord message links to track them
+- **Track Messages**: Paste a message link in the sidebar or right-click any message and select "Track Message (Auto-Resend)"
 - **Auto-Resend**: When a tracked message is deleted, it's automatically resent to the same channel
 - **Multiple Messages**: Track multiple messages across different channels
 - **Settings Panel**: View and manage all tracked messages from the plugin settings
 - **Persistent Storage**: Tracked messages are saved and restored when Discord restarts
-- **Visual Feedback**: Pop-up menu shows which messages are already tracked with clear visual indicators
+- **Visual Feedback**: Sidebar shows all tracked messages with easy untrack buttons
 
 ## Installation
 
@@ -25,12 +25,12 @@ A BetterDiscord plugin that automatically resends a tracked message if it gets d
 
 ### Tracking a Message
 
-**Method 1: Pop-up Menu (Recommended)**
-1. Navigate to the channel with the message you want to track
-2. Press `Ctrl+Shift+T` to open the tracking menu
-3. Browse the list of recent messages
-4. Click "Track" next to the message you want to monitor
-5. You'll see a success notification and visual feedback
+**Method 1: Message Link Sidebar (Recommended)**
+1. Right-click on any message in Discord and select "Copy Message Link"
+2. Press `Ctrl+Shift+T` to open the tracking sidebar
+3. Paste the message link into the input field
+4. Click "Track" or press Enter
+5. You'll see a success notification confirming the message is being tracked
 
 **Method 2: Context Menu**
 1. Right-click on any message you want to track
@@ -39,8 +39,8 @@ A BetterDiscord plugin that automatically resends a tracked message if it gets d
 
 ### Untracking a Message
 
-**Method 1: Pop-up Menu**
-1. Press `Ctrl+Shift+T` to open the tracking menu
+**Method 1: Sidebar**
+1. Press `Ctrl+Shift+T` to open the tracking sidebar
 2. Click "Untrack" next to the message you want to stop monitoring
 
 **Method 2: Context Menu**
@@ -115,6 +115,16 @@ This plugin is provided as-is for use with BetterDiscord.
 Contributions, issues, and feature requests are welcome!
 
 ## Changelog
+
+### v2.2.0 - Sidebar with Message Link Input
+- Replaced pop-up menu with a sidebar panel (Press `Ctrl+Shift+T`)
+- Added message link input field to track messages from any channel
+- Parse Discord message links to extract message ID and channel ID
+- Display all tracked messages in the sidebar with easy management
+- Keyboard shortcut support (`Ctrl+Shift+T` to toggle, `Esc` to close, `Enter` to submit)
+- Improved reliability - no longer depends on MessageStore._array
+- Cleaner UI with slide-in animation from the right
+- Better mobile/responsive support with max-width
 
 ### v2.1.0 - Pop-up Menu Feature
 - Added personal pop-up/modal UI for tracking messages (Press `Ctrl+Shift+T`)
