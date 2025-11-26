@@ -1,8 +1,8 @@
 /**
  * @name StickyMessageAutoResend
  * @author BetterDiscord Community
- * @description Automatically resends a tracked message if it gets deleted. Press Ctrl+Shift+T to open tracking menu.
- * @version 2.1.0
+ * @description Automatically resends a tracked message if it gets deleted. Press Ctrl+Shift+T to open tracking sidebar.
+ * @version 2.2.0
  * @authorId 0
  * @website https://github.com
  * @source https://github.com
@@ -14,26 +14,26 @@ module.exports = class StickyMessageAutoResend {
         this.messageDeleteHandler = null;
         this.messageCreateHandler = null;
         this.keyboardHandler = null;
-        this.modalElement = null;
+        this.sidebarElement = null;
     }
 
     getName() { return "StickyMessageAutoResend"; }
     getAuthor() { return "BetterDiscord Community"; }
-    getDescription() { return "Automatically resends a tracked message if it gets deleted. Press Ctrl+Shift+T to open tracking menu."; }
-    getVersion() { return "2.1.0"; }
+    getDescription() { return "Automatically resends a tracked message if it gets deleted. Press Ctrl+Shift+T to open tracking sidebar."; }
+    getVersion() { return "2.2.0"; }
 
     start() {
         this.loadSettings();
         this.patchContextMenu();
         this.startMessageDeleteListener();
         this.registerKeyboardShortcut();
-        BdApi.UI.showToast("StickyMessageAutoResend has started! Press Ctrl+Shift+T to open tracking menu.", { type: "success" });
+        BdApi.UI.showToast("StickyMessageAutoResend has started! Press Ctrl+Shift+T to open tracking sidebar.", { type: "success" });
     }
 
     stop() {
         this.stopMessageDeleteListener();
         this.unregisterKeyboardShortcut();
-        this.closeModal();
+        this.closeSidebar();
         BdApi.Patcher.unpatchAll(this.getName());
         BdApi.UI.showToast("StickyMessageAutoResend has stopped!", { type: "info" });
     }
@@ -442,10 +442,11 @@ module.exports = class StickyMessageAutoResend {
         instructions.innerHTML = `
             <h3 style="margin-top: 0; margin-bottom: 10px;">How to use:</h3>
             <ol style="margin: 0; padding-left: 20px;">
-                <li style="margin-bottom: 5px;"><strong>Recommended:</strong> Press <kbd style="background: var(--background-modifier-accent); padding: 2px 6px; border-radius: 3px; font-family: monospace;">Ctrl+Shift+T</kbd> to open the tracking menu</li>
+                <li style="margin-bottom: 5px;"><strong>Recommended:</strong> Press <kbd style="background: var(--background-modifier-accent); padding: 2px 6px; border-radius: 3px; font-family: monospace;">Ctrl+Shift+T</kbd> to open the tracking sidebar</li>
+                <li style="margin-bottom: 5px;">Paste a Discord message link in the sidebar to track it</li>
                 <li style="margin-bottom: 5px;">Or right-click on any message and select "Track Message (Auto-Resend)"</li>
                 <li style="margin-bottom: 5px;">The message will automatically be resent if deleted</li>
-                <li>To stop tracking, use the pop-up menu, right-click the message, or use this panel</li>
+                <li>To stop tracking, use the sidebar, right-click the message, or use this panel</li>
             </ol>
         `;
         panel.appendChild(instructions);
@@ -455,11 +456,11 @@ module.exports = class StickyMessageAutoResend {
 
     registerKeyboardShortcut() {
         this.keyboardHandler = (event) => {
-            // Ctrl+Shift+T to open the tracking modal
+            // Ctrl+Shift+T to open the tracking sidebar
             if (event.ctrlKey && event.shiftKey && event.key === 'T') {
                 event.preventDefault();
                 event.stopPropagation();
-                this.openModal();
+                this.toggleSidebar();
             }
         };
         document.addEventListener('keydown', this.keyboardHandler, true);
@@ -472,64 +473,20 @@ module.exports = class StickyMessageAutoResend {
         }
     }
 
-    openModal() {
-        // Close existing modal if open
-        if (this.modalElement) {
-            this.closeModal();
+    toggleSidebar() {
+        if (this.sidebarElement) {
+            this.closeSidebar();
+        } else {
+            this.openSidebar();
         }
-
-        // Get current channel
-        const SelectedChannelStore = BdApi.Webpack.getModule(
-            m => m?.getChannelId && m?.getVoiceChannelId
-        );
-        
-        if (!SelectedChannelStore) {
-            BdApi.UI.showToast("Cannot open tracking menu: SelectedChannelStore not found", { type: "error" });
-            return;
-        }
-
-        const currentChannelId = SelectedChannelStore.getChannelId();
-        
-        if (!currentChannelId) {
-            BdApi.UI.showToast("Please select a channel first", { type: "info" });
-            return;
-        }
-
-        // Get messages from current channel
-        const MessageStore = BdApi.Webpack.getModule(
-            m => m?.getMessages && m?.getMessage
-        );
-        
-        if (!MessageStore) {
-            BdApi.UI.showToast("Cannot open tracking menu: MessageStore not found", { type: "error" });
-            return;
-        }
-
-        const messages = MessageStore.getMessages(currentChannelId);
-        
-        if (!messages || !messages._array || messages._array.length === 0) {
-            BdApi.UI.showToast("No messages found in this channel", { type: "info" });
-            return;
-        }
-
-        this.renderModal(currentChannelId, messages._array);
     }
 
-    renderModal(channelId, messages) {
-        // Get stores for user and channel info
-        const UserStore = BdApi.Webpack.getModule(
-            m => m?.getCurrentUser && m?.getUser
-        );
-        
-        const ChannelStore = BdApi.Webpack.getModule(
-            m => m?.getChannel && m?.hasChannel
-        );
+    openSidebar() {
+        if (this.sidebarElement) {
+            return;
+        }
 
-        const currentUser = UserStore ? UserStore.getCurrentUser() : null;
-        const channel = ChannelStore ? ChannelStore.getChannel(channelId) : null;
-        const channelName = channel ? `#${channel.name}` : "Unknown Channel";
-
-        // Create modal backdrop
+        // Create overlay backdrop
         const backdrop = document.createElement('div');
         backdrop.style.cssText = `
             position: fixed;
@@ -537,26 +494,26 @@ module.exports = class StickyMessageAutoResend {
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.85);
+            background-color: rgba(0, 0, 0, 0.5);
             z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: fadeIn 0.15s ease-out;
+            animation: fadeIn 0.2s ease-out;
         `;
 
-        // Create modal container
-        const modal = document.createElement('div');
-        modal.style.cssText = `
+        // Create sidebar container
+        const sidebar = document.createElement('div');
+        sidebar.style.cssText = `
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 450px;
+            max-width: 90vw;
+            height: 100%;
             background-color: var(--background-primary);
-            border-radius: 8px;
-            width: 90%;
-            max-width: 700px;
-            max-height: 80vh;
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+            z-index: 1001;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
-            animation: slideIn 0.2s ease-out;
+            animation: slideInRight 0.3s ease-out;
         `;
 
         // Add animations
@@ -566,9 +523,9 @@ module.exports = class StickyMessageAutoResend {
                 from { opacity: 0; }
                 to { opacity: 1; }
             }
-            @keyframes slideIn {
-                from { transform: translateY(-20px); opacity: 0; }
-                to { transform: translateY(0); opacity: 1; }
+            @keyframes slideInRight {
+                from { transform: translateX(100%); }
+                to { transform: translateX(0); }
             }
         `;
         document.head.appendChild(style);
@@ -581,16 +538,17 @@ module.exports = class StickyMessageAutoResend {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            background-color: var(--background-secondary);
         `;
 
         const title = document.createElement('h2');
         title.style.cssText = `
             margin: 0;
             color: var(--header-primary);
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 600;
         `;
-        title.textContent = `Track Messages in ${channelName}`;
+        title.textContent = 'Track Messages';
 
         const closeButton = document.createElement('button');
         closeButton.innerHTML = '×';
@@ -617,169 +575,141 @@ module.exports = class StickyMessageAutoResend {
             closeButton.style.backgroundColor = 'transparent';
             closeButton.style.color = 'var(--interactive-normal)';
         };
-        closeButton.onclick = () => this.closeModal();
+        closeButton.onclick = () => this.closeSidebar();
 
         header.appendChild(title);
         header.appendChild(closeButton);
 
-        // Create scrollable content area
+        // Create content container
         const content = document.createElement('div');
         content.style.cssText = `
-            padding: 20px;
-            overflow-y: auto;
             flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         `;
 
-        // Filter and display messages (only show recent messages)
-        const recentMessages = messages.slice(-50).reverse();
+        // Create message link input section
+        const inputSection = document.createElement('div');
+        inputSection.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        `;
 
-        if (recentMessages.length === 0) {
-            const emptyState = document.createElement('div');
-            emptyState.style.cssText = `
-                text-align: center;
-                color: var(--text-muted);
-                padding: 40px 20px;
-                font-style: italic;
-            `;
-            emptyState.textContent = 'No messages found in this channel';
-            content.appendChild(emptyState);
-        } else {
-            const messageList = document.createElement('div');
-            messageList.style.cssText = `
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-            `;
+        const inputLabel = document.createElement('label');
+        inputLabel.style.cssText = `
+            color: var(--header-primary);
+            font-size: 14px;
+            font-weight: 600;
+        `;
+        inputLabel.textContent = 'Paste Message Link:';
 
-            recentMessages.forEach(message => {
-                const isTracked = this.trackedMessages.has(message.id);
-                const isOwnMessage = currentUser && message.author.id === currentUser.id;
+        const inputContainer = document.createElement('div');
+        inputContainer.style.cssText = `
+            display: flex;
+            gap: 8px;
+        `;
 
-                const messageItem = document.createElement('div');
-                messageItem.style.cssText = `
-                    padding: 12px;
-                    background-color: ${isTracked ? 'var(--background-modifier-selected)' : 'var(--background-secondary)'};
-                    border-radius: 6px;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    gap: 12px;
-                    border: 2px solid ${isTracked ? 'var(--brand-experiment)' : 'transparent'};
-                    transition: background-color 0.1s;
-                `;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = 'https://discord.com/channels/.../...';
+        input.style.cssText = `
+            flex: 1;
+            padding: 10px;
+            background-color: var(--input-background);
+            color: var(--text-normal);
+            border: 1px solid var(--background-modifier-accent);
+            border-radius: 4px;
+            font-size: 14px;
+            outline: none;
+        `;
+        input.onfocus = () => {
+            input.style.borderColor = 'var(--brand-experiment)';
+        };
+        input.onblur = () => {
+            input.style.borderColor = 'var(--background-modifier-accent)';
+        };
+        input.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                trackButton.click();
+            }
+        };
 
-                const messageInfo = document.createElement('div');
-                messageInfo.style.cssText = `
-                    flex: 1;
-                    min-width: 0;
-                `;
+        const trackButton = document.createElement('button');
+        trackButton.textContent = 'Track';
+        trackButton.style.cssText = `
+            padding: 10px 20px;
+            background-color: var(--brand-experiment);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.1s;
+        `;
+        trackButton.onmouseover = () => {
+            trackButton.style.opacity = '0.85';
+        };
+        trackButton.onmouseout = () => {
+            trackButton.style.opacity = '1';
+        };
+        trackButton.onclick = () => this.handleTrackMessageFromLink(input.value, content);
 
-                // Author and timestamp
-                const authorLine = document.createElement('div');
-                authorLine.style.cssText = `
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    margin-bottom: 6px;
-                `;
+        const helpText = document.createElement('div');
+        helpText.style.cssText = `
+            color: var(--text-muted);
+            font-size: 12px;
+            line-height: 1.5;
+        `;
+        helpText.innerHTML = `
+            Right-click a message and select "Copy Message Link",<br>
+            then paste it here to track the message.
+        `;
 
-                const authorName = document.createElement('span');
-                authorName.style.cssText = `
-                    color: var(--header-primary);
-                    font-weight: 600;
-                    font-size: 14px;
-                `;
-                authorName.textContent = message.author.username;
+        inputContainer.appendChild(input);
+        inputContainer.appendChild(trackButton);
+        inputSection.appendChild(inputLabel);
+        inputSection.appendChild(inputContainer);
+        inputSection.appendChild(helpText);
 
-                const timestamp = document.createElement('span');
-                timestamp.style.cssText = `
-                    color: var(--text-muted);
-                    font-size: 12px;
-                `;
-                const date = new Date(message.timestamp);
-                timestamp.textContent = date.toLocaleString();
+        // Create tracked messages section
+        const trackedSection = document.createElement('div');
+        trackedSection.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        `;
 
-                if (isOwnMessage) {
-                    const badge = document.createElement('span');
-                    badge.style.cssText = `
-                        background-color: var(--brand-experiment);
-                        color: white;
-                        font-size: 10px;
-                        padding: 2px 6px;
-                        border-radius: 3px;
-                        font-weight: 600;
-                    `;
-                    badge.textContent = 'YOU';
-                    authorLine.appendChild(badge);
-                }
+        const trackedTitle = document.createElement('h3');
+        trackedTitle.style.cssText = `
+            margin: 0;
+            color: var(--header-primary);
+            font-size: 14px;
+            font-weight: 600;
+        `;
+        trackedTitle.textContent = 'Tracked Messages:';
 
-                authorLine.appendChild(authorName);
-                authorLine.appendChild(timestamp);
+        const trackedList = document.createElement('div');
+        trackedList.id = 'tracked-messages-list';
+        trackedList.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        `;
 
-                // Message content preview
-                const contentPreview = document.createElement('div');
-                contentPreview.style.cssText = `
-                    color: var(--text-normal);
-                    font-size: 14px;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    line-height: 1.4;
-                `;
-                const previewText = message.content || '[No text content]';
-                contentPreview.textContent = previewText.substring(0, 150) + (previewText.length > 150 ? '...' : '');
+        this.renderTrackedMessages(trackedList);
 
-                messageInfo.appendChild(authorLine);
-                messageInfo.appendChild(contentPreview);
+        trackedSection.appendChild(trackedTitle);
+        trackedSection.appendChild(trackedList);
 
-                // Track/Untrack button
-                const actionButton = document.createElement('button');
-                actionButton.style.cssText = `
-                    padding: 8px 16px;
-                    border: none;
-                    border-radius: 4px;
-                    font-size: 14px;
-                    font-weight: 500;
-                    cursor: pointer;
-                    white-space: nowrap;
-                    transition: background-color 0.1s, opacity 0.1s;
-                    background-color: ${isTracked ? 'var(--button-danger-background)' : 'var(--brand-experiment)'};
-                    color: white;
-                `;
-                actionButton.textContent = isTracked ? 'Untrack' : 'Track';
-
-                actionButton.onmouseover = () => {
-                    actionButton.style.opacity = '0.85';
-                };
-                actionButton.onmouseout = () => {
-                    actionButton.style.opacity = '1';
-                };
-
-                actionButton.onclick = () => {
-                    if (isTracked) {
-                        this.untrackMessage(message.id);
-                        BdApi.UI.showToast("Message untracked", { type: "info" });
-                        messageItem.style.backgroundColor = 'var(--background-secondary)';
-                        messageItem.style.borderColor = 'transparent';
-                        actionButton.textContent = 'Track';
-                        actionButton.style.backgroundColor = 'var(--brand-experiment)';
-                    } else {
-                        this.trackMessage(message);
-                        BdApi.UI.showToast("Message is now being tracked!", { type: "success" });
-                        messageItem.style.backgroundColor = 'var(--background-modifier-selected)';
-                        messageItem.style.borderColor = 'var(--brand-experiment)';
-                        actionButton.textContent = 'Untrack';
-                        actionButton.style.backgroundColor = 'var(--button-danger-background)';
-                    }
-                };
-
-                messageItem.appendChild(messageInfo);
-                messageItem.appendChild(actionButton);
-                messageList.appendChild(messageItem);
-            });
-
-            content.appendChild(messageList);
-        }
+        // Add sections to content
+        content.appendChild(inputSection);
+        content.appendChild(trackedSection);
 
         // Create footer with instructions
         const footer = document.createElement('div');
@@ -787,57 +717,236 @@ module.exports = class StickyMessageAutoResend {
             padding: 15px 20px;
             border-top: 1px solid var(--background-modifier-accent);
             background-color: var(--background-secondary);
-            border-radius: 0 0 8px 8px;
-        `;
-
-        const instructions = document.createElement('div');
-        instructions.style.cssText = `
+            font-size: 12px;
             color: var(--text-muted);
-            font-size: 13px;
             line-height: 1.5;
         `;
-        instructions.innerHTML = `
-            <strong style="color: var(--header-secondary);">💡 Tip:</strong> 
-            Click "Track" to monitor a message. If it gets deleted, it will be automatically resent. 
-            Press <kbd style="background: var(--background-modifier-accent); padding: 2px 6px; border-radius: 3px; font-family: monospace;">Ctrl+Shift+T</kbd> to reopen this menu or <kbd style="background: var(--background-modifier-accent); padding: 2px 6px; border-radius: 3px; font-family: monospace;">Esc</kbd> to close.
+        footer.innerHTML = `
+            <strong style="color: var(--header-secondary);">💡 How it works:</strong><br>
+            Paste a Discord message link above to track it. If the message gets deleted,
+            it will be automatically resent. Press <kbd style="background: var(--background-modifier-accent); padding: 2px 6px; border-radius: 3px; font-family: monospace;">Ctrl+Shift+T</kbd> to toggle this sidebar.
         `;
-        footer.appendChild(instructions);
 
-        // Assemble modal
-        modal.appendChild(header);
-        modal.appendChild(content);
-        modal.appendChild(footer);
-        backdrop.appendChild(modal);
+        // Assemble sidebar
+        sidebar.appendChild(header);
+        sidebar.appendChild(content);
+        sidebar.appendChild(footer);
 
         // Close on backdrop click
         backdrop.onclick = (e) => {
             if (e.target === backdrop) {
-                this.closeModal();
+                this.closeSidebar();
             }
         };
 
         // Close on Escape key
         const escapeHandler = (e) => {
             if (e.key === 'Escape') {
-                this.closeModal();
+                this.closeSidebar();
             }
         };
         document.addEventListener('keydown', escapeHandler);
+
+        // Store references
+        backdrop.sidebar = sidebar;
         backdrop.escapeHandler = escapeHandler;
 
         // Add to DOM
         document.body.appendChild(backdrop);
-        this.modalElement = backdrop;
+        document.body.appendChild(sidebar);
+        this.sidebarElement = { backdrop, sidebar };
     }
 
-    closeModal() {
-        if (this.modalElement) {
-            // Remove escape handler
-            if (this.modalElement.escapeHandler) {
-                document.removeEventListener('keydown', this.modalElement.escapeHandler);
+    closeSidebar() {
+        if (this.sidebarElement) {
+            const { backdrop, sidebar } = this.sidebarElement;
+            
+            if (backdrop.escapeHandler) {
+                document.removeEventListener('keydown', backdrop.escapeHandler);
             }
-            this.modalElement.remove();
-            this.modalElement = null;
+            
+            backdrop.remove();
+            sidebar.remove();
+            this.sidebarElement = null;
+        }
+    }
+
+    renderTrackedMessages(container) {
+        container.innerHTML = '';
+
+        const ChannelStore = BdApi.Webpack.getModule(
+            m => m?.getChannel && m?.hasChannel
+        );
+
+        if (this.trackedMessages.size === 0) {
+            const emptyState = document.createElement('div');
+            emptyState.style.cssText = `
+                padding: 20px;
+                text-align: center;
+                color: var(--text-muted);
+                font-style: italic;
+                background-color: var(--background-secondary);
+                border-radius: 6px;
+            `;
+            emptyState.textContent = 'No messages are currently tracked.';
+            container.appendChild(emptyState);
+            return;
+        }
+
+        this.trackedMessages.forEach((messageData, messageId) => {
+            const item = document.createElement('div');
+            item.style.cssText = `
+                padding: 12px;
+                background-color: var(--background-secondary);
+                border-radius: 6px;
+                border: 1px solid var(--background-modifier-accent);
+            `;
+
+            const contentPreview = document.createElement('div');
+            contentPreview.style.cssText = `
+                color: var(--text-normal);
+                font-size: 13px;
+                margin-bottom: 8px;
+                word-wrap: break-word;
+            `;
+            const previewText = messageData.content || '[No text content]';
+            contentPreview.textContent = previewText.substring(0, 100) + (previewText.length > 100 ? '...' : '');
+
+            const metadata = document.createElement('div');
+            metadata.style.cssText = `
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 11px;
+                color: var(--text-muted);
+                margin-bottom: 8px;
+            `;
+
+            const channel = ChannelStore ? ChannelStore.getChannel(messageData.channelId) : null;
+            const channelName = channel ? `#${channel.name}` : 'Unknown Channel';
+            
+            const metaText = document.createElement('span');
+            metaText.textContent = `${channelName} • ${messageData.author.username}`;
+            
+            metadata.appendChild(metaText);
+
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = 'Untrack';
+            removeBtn.style.cssText = `
+                padding: 6px 12px;
+                background-color: var(--button-danger-background);
+                color: white;
+                border: none;
+                border-radius: 3px;
+                font-size: 12px;
+                cursor: pointer;
+                transition: opacity 0.1s;
+            `;
+            removeBtn.onmouseover = () => {
+                removeBtn.style.opacity = '0.85';
+            };
+            removeBtn.onmouseout = () => {
+                removeBtn.style.opacity = '1';
+            };
+            removeBtn.onclick = () => {
+                this.untrackMessage(messageId);
+                BdApi.UI.showToast("Message untracked", { type: "info" });
+                this.refreshTrackedMessages();
+            };
+
+            item.appendChild(contentPreview);
+            item.appendChild(metadata);
+            item.appendChild(removeBtn);
+            container.appendChild(item);
+        });
+    }
+
+    refreshTrackedMessages() {
+        if (this.sidebarElement) {
+            const container = document.getElementById('tracked-messages-list');
+            if (container) {
+                this.renderTrackedMessages(container);
+            }
+        }
+    }
+
+    parseMessageLink(link) {
+        try {
+            const url = new URL(link.trim());
+            
+            if (url.hostname !== 'discord.com' && url.hostname !== 'discordapp.com') {
+                return null;
+            }
+
+            const pathParts = url.pathname.split('/').filter(p => p);
+            
+            if (pathParts[0] !== 'channels') {
+                return null;
+            }
+
+            if (pathParts.length < 4) {
+                return null;
+            }
+
+            const guildId = pathParts[1];
+            const channelId = pathParts[2];
+            const messageId = pathParts[3];
+
+            return { guildId, channelId, messageId };
+        } catch (error) {
+            console.error('[StickyMessageAutoResend] Error parsing message link:', error);
+            return null;
+        }
+    }
+
+    async handleTrackMessageFromLink(link, contentContainer) {
+        if (!link || link.trim() === '') {
+            BdApi.UI.showToast("Please enter a message link", { type: "error" });
+            return;
+        }
+
+        const parsed = this.parseMessageLink(link);
+        if (!parsed) {
+            BdApi.UI.showToast("Invalid message link. Right-click a message and select 'Copy Message Link'.", { type: "error" });
+            return;
+        }
+
+        const { channelId, messageId } = parsed;
+
+        if (this.trackedMessages.has(messageId)) {
+            BdApi.UI.showToast("This message is already being tracked", { type: "info" });
+            return;
+        }
+
+        try {
+            const MessageStore = BdApi.Webpack.getModule(
+                m => m?.getMessage && m?.getMessages
+            );
+
+            if (!MessageStore) {
+                BdApi.UI.showToast("Cannot fetch message: MessageStore not found", { type: "error" });
+                return;
+            }
+
+            const message = MessageStore.getMessage(channelId, messageId);
+
+            if (!message) {
+                BdApi.UI.showToast("Message not found. Make sure you have access to the channel.", { type: "error" });
+                return;
+            }
+
+            this.trackMessage(message);
+            BdApi.UI.showToast("Message is now being tracked!", { type: "success" });
+            
+            const input = contentContainer.querySelector('input');
+            if (input) {
+                input.value = '';
+            }
+
+            this.refreshTrackedMessages();
+        } catch (error) {
+            console.error('[StickyMessageAutoResend] Error tracking message from link:', error);
+            BdApi.UI.showToast("Failed to track message. Check console for details.", { type: "error" });
         }
     }
 };
